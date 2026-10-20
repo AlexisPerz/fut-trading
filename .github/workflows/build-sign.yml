@@ -1,0 +1,59 @@
+# Builds FUT Trading on GitHub, has SignPath sign FUTTrading.exe and FUTTrading.dll,
+# and publishes the signed app as the "FUTTrading-signed" artifact (and on a release for v* tags).
+name: build-and-sign
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build-sign:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build
+        run: dotnet publish FutTrading.csproj -c Release --self-contained false -p:DebugType=none -o out
+
+      - name: Upload unsigned build
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: FUTTrading-unsigned
+          path: out/
+
+      - name: Sign with SignPath
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Upload signed app
+        uses: actions/upload-artifact@v4
+        with:
+          name: FUTTrading-signed
+          path: signed/
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          Compress-Archive -Path signed/* -DestinationPath FUTTrading-signed.zip
+          gh release create $env:GITHUB_REF_NAME FUTTrading-signed.zip --title "FUT Trading $env:GITHUB_REF_NAME" --notes "Version signée par SignPath."
+        env:
+          GH_TOKEN: ${{ github.token }}

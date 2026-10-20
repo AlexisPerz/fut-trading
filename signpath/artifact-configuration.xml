@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Paste this into the SignPath project's artifact configuration.
+     The GitHub artifact is a zip of the publish folder; only our two binaries are signed,
+     the WebView2 DLLs are already signed by Microsoft and pass through unchanged. -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file path="FUTTrading.exe">
+      <authenticode-sign />
+    </pe-file>
+    <pe-file path="FUTTrading.dll">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

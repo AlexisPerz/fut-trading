@@ -1,0 +1,1395 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script>try{['eaTab','futbinTab','xTab'].forEach(k=>localStorage.removeItem('fut.'+k))}catch{}</script>
+<script src="shim.js"></script></head><body style="margin:0">
+<title>Trading FUT</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a dark "pitch" header with the bank and one refresh button; four tabs; the Today tab is one ranked feed of action cards */
+:root{
+  --bg:#EDF1EF; --surface:#FFFFFF; --sunk:#E2E8E5; --ink:#121B18; --muted:#55645E; --line:#D2DBD7;
+  --head:#0F2A21; --head-ink:#EAF3EE; --head-muted:#9FB8AD;
+  --gold:#8A5F00; --gold-ink:#2E2000; --gold-fill:#E9B63E; --gold-soft:#F7EBCB;
+  --buy:#17784A; --buy-soft:#DDF1E6; --sell:#B4442C; --sell-soft:#F8E1DA; --prep:#2E5E9E; --prep-soft:#DFE8F5;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B1210; --surface:#131D1A; --sunk:#1A2622; --ink:#E5EDE9; --muted:#93A39C; --line:#26342F;
+  --head:#081A14; --head-ink:#EAF3EE; --head-muted:#8FA99E;
+  --gold:#EBBE55; --gold-ink:#1C1300; --gold-fill:#E3B03C; --gold-soft:#352A10;
+  --buy:#5DCB93; --buy-soft:#123326; --sell:#F08A72; --sell-soft:#3A1D16; --prep:#86AEEB; --prep-soft:#17263B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B1210; --surface:#131D1A; --sunk:#1A2622; --ink:#E5EDE9; --muted:#93A39C; --line:#26342F;
+  --head:#081A14; --head-ink:#EAF3EE; --head-muted:#8FA99E;
+  --gold:#EBBE55; --gold-ink:#1C1300; --gold-fill:#E3B03C; --gold-soft:#352A10;
+  --buy:#5DCB93; --buy-soft:#123326; --sell:#F08A72; --sell-soft:#3A1D16; --prep:#86AEEB; --prep-soft:#17263B; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--head)}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.05}
+h2{font-size:1.55rem}
+h3{font-size:1.2rem}
+p{margin:0}
+a{color:inherit}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.hint{font-size:.84rem;color:var(--muted)}
+.label{font-size:.7rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.pos{color:var(--buy)} .neg{color:var(--sell)}
+
+/* header */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--head);color:var(--head-ink)}
+.bar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px 22px;align-items:center;padding-block:14px 10px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand h1{font-size:1.45rem;text-transform:uppercase;letter-spacing:.04em}
+.coin{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#FFE7A0,#E3B03C 60%,#9C6E0A);flex:none}
+.bank{display:grid;gap:5px;min-width:0}
+.bank-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.bank-top b{font-family:var(--f-display);font-size:1.6rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.bank-top span{color:var(--head-muted);font-size:.85rem}
+.track{position:relative;height:8px;background:rgba(255,255,255,.12);border-radius:4px;overflow:hidden}
+.fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#E3B03C,#F6D27A);border-radius:4px;transition:width .6s ease}
+.refresh{display:grid;gap:4px;justify-items:end}
+.refresh small{color:var(--head-muted);font-size:.75rem;text-align:right}
+nav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav button{font:600 .95rem var(--f-body);background:none;border:0;color:var(--head-muted);padding:10px 14px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+nav button[aria-selected="true"]{color:var(--head-ink);border-bottom-color:#E3B03C}
+nav button:hover{color:var(--head-ink)}
+@media (max-width:640px){.bar{grid-template-columns:minmax(0,1fr) auto}.bank{grid-column:1/-1;grid-row:2}}
+
+main{padding-block:22px 72px}
+section[role="tabpanel"]{display:grid;grid-template-columns:minmax(0,1fr);gap:22px}
+[hidden]{display:none!important}
+.status{font-size:.85rem;padding:9px 12px;border-radius:8px;background:var(--gold-soft)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:grid;gap:14px;min-width:0;align-content:start}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:22px;align-items:start}
+.head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+.kv div{display:grid;gap:2px;min-width:0}
+.kv .num{font-size:1.05rem;font-weight:600}
+
+/* mood strip */
+.mood{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:.9rem}
+.mood .gauge{display:inline-flex;align-items:center;gap:8px}
+.gbar{width:90px;height:6px;border-radius:3px;background:var(--sunk);overflow:hidden}
+.gbar i{display:block;height:100%;background:var(--gold-fill)}
+
+/* opportunity cards */
+.opps{display:grid;gap:10px}
+.opp{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:6px 16px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.act{font-family:var(--f-display);font-weight:800;font-size:1.15rem;letter-spacing:.05em;text-align:center;padding:8px 4px;border-radius:8px;line-height:1}
+.act.buy{background:var(--buy-soft);color:var(--buy)} .act.sell{background:var(--sell-soft);color:var(--sell)} .act.prep{background:var(--prep-soft);color:var(--prep)}
+.opp-main{display:grid;gap:3px;min-width:0}
+.opp-title{font-weight:600;font-size:1.02rem}
+.opp-prices{font-family:var(--f-mono);font-size:.88rem;font-variant-numeric:tabular-nums}
+.opp-why{font-size:.84rem;color:var(--muted)}
+.opp-side{display:grid;gap:6px;justify-items:end;text-align:right}
+.opp-net{font-family:var(--f-display);font-weight:800;font-size:1.35rem;font-variant-numeric:tabular-nums;line-height:1}
+.src{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--muted)}
+@media (max-width:560px){.opp{grid-template-columns:72px minmax(0,1fr)}.opp-side{grid-column:1/-1;grid-template-columns:auto auto;justify-content:space-between;align-items:center}}
+
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.filters button{font:600 .82rem var(--f-body);padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+
+/* forms & buttons */
+form{display:grid;gap:12px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+label.f{display:grid;gap:4px;font-size:.8rem;font-weight:600;color:var(--muted)}
+input,select,textarea{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+input[type=checkbox]{width:auto}
+textarea{resize:vertical;min-height:60px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--gold-fill);outline-offset:2px}
+.btn{font:600 .88rem var(--f-body);border-radius:8px;border:1px solid transparent;padding:8px 14px;cursor:pointer;background:var(--ink);color:var(--surface);white-space:nowrap;text-decoration:none;display:inline-block}
+.btn.gold{background:var(--gold-fill);color:var(--gold-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+header .btn.ghost{color:var(--head-ink);border-color:rgba(255,255,255,.25)}
+.btn.small{padding:4px 10px;font-size:.8rem}
+.btn.danger{color:var(--sell)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+details.box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+details.box>summary{cursor:pointer;padding:14px 18px;font-family:var(--f-display);font-weight:700;font-size:1.2rem;list-style:none;display:flex;justify-content:space-between;gap:10px}
+details.box>summary::after{content:"+";color:var(--muted)}
+details.box[open]>summary::after{content:"–"}
+details.box>.inner{padding:0 18px 18px;display:grid;gap:14px}
+
+/* tables */
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+.tablebox table{min-width:640px}
+th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--sunk)}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+.chip{display:inline-flex;align-items:center;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--sunk);color:var(--muted);white-space:nowrap;letter-spacing:.02em}
+.chip.buy{background:var(--buy-soft);color:var(--buy)} .chip.sell{background:var(--sell-soft);color:var(--sell)} .chip.prep{background:var(--prep-soft);color:var(--prep)} .chip.gold{background:var(--gold-soft);color:var(--gold)}
+.sell-inline{display:flex;gap:6px;justify-content:flex-end}
+.sell-inline input{width:110px;padding:4px 8px}
+
+.list{display:grid}
+.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:start;padding:11px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.date{font-family:var(--f-mono);font-size:.78rem;background:var(--sunk);border-radius:6px;padding:3px 7px;white-space:nowrap}
+.post{white-space:pre-wrap;font-size:.9rem}
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:20px;text-align:center;color:var(--muted);display:grid;gap:4px;justify-items:center}
+.empty strong{color:var(--ink);font-family:var(--f-display);font-size:1.12rem}
+.note{font-size:.86rem;padding:9px 12px;border-radius:8px;background:var(--sunk)}
+.note.err{background:var(--sell-soft);color:var(--sell)} .note.ok{background:var(--buy-soft);color:var(--buy)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px;align-content:start}
+.card .name{font-family:var(--f-display);font-size:1.25rem;font-weight:700;line-height:1.1}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:8px;font-size:.9rem;z-index:20;max-width:calc(100vw - 32px)}
+.coach{white-space:pre-wrap;font-size:.94rem;line-height:1.6}
+.guard{font-size:.86rem;padding:10px 14px;border-radius:8px;background:var(--buy-soft);color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}}
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand"><span class="coin" aria-hidden="true"></span><h1>Trading FUT</h1></div>
+      <div class="bank" aria-label="Progression vers 1 000 000 de crédits">
+        <div class="bank-top"><b id="h-coins">—</b><span id="h-sub">/ 1 000 000 crédits</span></div>
+        <div class="track"><div class="fill" id="h-fill" style="width:0%"></div></div>
+      </div>
+      <div class="refresh">
+        <button class="btn gold" type="button" id="go-all">Tout actualiser</button>
+        <small id="h-refresh">Jamais actualisé</small>
+      </div>
+    </div>
+    <nav role="tablist" aria-label="Sections">
+      <button role="tab" data-tab="jour" aria-selected="true">Aujourd'hui</button>
+      <button role="tab" data-tab="marche" aria-selected="false">Marché</button>
+      <button role="tab" data-tab="trades" aria-selected="false">Mes trades</button>
+      <button role="tab" data-tab="reglages" aria-selected="false">Réglages</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <p class="status" id="status">Connexion à ta base de données…</p>
+  <p class="note" id="run-note" hidden></p>
+
+  <!-- AUJOURD'HUI -->
+  <section role="tabpanel" id="tab-jour">
+    <div class="mood" id="mood"></div>
+    <div class="head">
+      <h2>Opportunités</h2>
+      <div class="filters" id="o-filters">
+        <button type="button" data-f="all" aria-pressed="true">Tout</button>
+        <button type="button" data-f="buy" aria-pressed="false">Acheter</button>
+        <button type="button" data-f="sell" aria-pressed="false">Vendre</button>
+      </div>
+    </div>
+    <p class="hint" id="phase-text"></p>
+    <div class="opps" id="opps"></div>
+    <div class="panel">
+      <div class="head"><h2>Plan de mass bidding</h2><button class="btn gold" type="button" id="mb-go">Calculer mon plan</button></div>
+      <p class="hint">Calculé sur les <b>ventes réellement conclues</b> sur Futbin : vitesse de vente, prix payés, fourchette EA. Enchéris sur beaucoup d'exemplaires d'une carte très échangée, en dessous du prix du marché, puis revends en achat immédiat.</p>
+      <p class="note" id="mb-note" hidden></p>
+      <div id="mb-plan"></div>
+    </div>
+    <div class="panel">
+      <div class="head"><h2>Résultats mesurés</h2><span class="hint" id="tr-meta"></span></div>
+      <p class="hint">Chaque conseil d'achat est suivi pendant 48 à 72 h, sur les vraies ventes Futbin. L'appli vérifie si ton enchère aurait été remportée, puis si le prix de revente a été atteint. C'est une simulation pour 1 exemplaire, sans tes trades réels.</p>
+      <div id="tr-results"></div>
+    </div>
+    <p class="hint">Uniquement des reventes rapides, de quelques heures à 3 jours maximum. Classées par priorité : leaks, ventes à faire, méta, puis baisses du marché. Les prix d'achat et de revente sont arrondis aux paliers de la web app, taxe EA de 5 % déduite. Ce sont des estimations, pas des garanties.</p>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>Route vers le million</h3>
+        <div class="kv" id="plan-kv"></div>
+        <p class="hint" id="plan-hint"></p>
+      </div>
+      <div class="panel">
+        <div class="head"><h3>Coach Claude</h3><button class="btn ghost small" type="button" id="coach-go">Analyser</button></div>
+        <p class="hint" id="coach-meta">Analyse ton journal et le marché du moment. Consomme un peu de ton usage Claude.</p>
+        <div class="coach" id="coach-out"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARCHÉ -->
+  <section role="tabpanel" id="tab-marche" hidden>
+    <details class="box">
+      <summary>Comment bouge le marché (données Futbin)</summary>
+      <div class="inner">
+        <p class="hint">Analyse des indices Futbin sur toute la saison FC 26 (septembre 2025 → septembre 2026) et sur le premier mois de FC 27. L'appli applique ces règles à ses conseils.</p>
+        <div class="list">
+          <div class="item"><span class="chip gold">Saison</span><span><b>Cartes normales : −50 % du lancement à janvier, puis forte remontée.</b> Index 100 FC 26 : 96 fin septembre, 50 fin décembre, plat jusqu'en mars, puis 100 en mai et 470 en septembre. FC 27 suit le même début : 168 → 95 en un mois.</span><span></span></div>
+          <div class="item"><span class="chip sell">85+</span><span><b>Les cartes 85+ et les icônes baissent toute l'année.</b> FC 26, de septembre à juillet : 85 → −70 %, 86 → −87 %, icônes → −80 %. N'en garde jamais en stock : flips de moins de 24 h seulement.</span><span></span></div>
+          <div class="item"><span class="chip buy">81–83</span><span><b>Le petit fourrage tient puis grimpe.</b> FC 26 : 81–82 stables jusqu'en février, +30 % en mai, ×2 en été. Au printemps et en été, une carte invendue prend donc de la valeur, ce qui réduit le risque des flips.</span><span></span></div>
+          <div class="item"><span class="chip prep">Semaine</span><span><b>Le jeudi est le jour le moins cher (−2,7 %), le lundi le plus cher (+2,8 %).</b> D'après l'analyse « Market timing » de Futbin sur FC 27. L'indice FC 26 donne la même tendance : vendredi −3,1 %, mardi +2,7 %.</span><span></span></div>
+          <div class="item"><span class="chip prep">Journée</span><span><b>21h est l'heure la moins chère (−3 %), 8h la plus chère (+4,5 %).</b> Calculé par Futbin sur 4,4 millions de relevés horaires. Futbin le juge peu fiable pour une carte seule : sers-t'en pour placer un achat que tu ferais de toute façon, pas pour un flip.</span><span></span></div>
+          <div class="item"><span class="chip">Règles</span><span><b>Taxe EA de 5 % prélevée sur chaque vente, l'achat n'est pas taxé.</b> Pour être rentable, il faut revendre au moins 5,3 % au-dessus du prix d'achat. Mises en vente de 1, 3, 6 ou 12 h, avec un prix de départ et un prix d'achat immédiat. Chaque carte a une fourchette de prix min/max fixée par EA, qui peut changer en cours de saison : un prix hors fourchette est refusé. Les enchères montent par paliers : 50 sous 1 000, 100 jusqu'à 10 000, 250 jusqu'à 50 000, 500 jusqu'à 100 000, 1 000 au-delà.</span><span></span></div>
+          <div class="item"><span class="chip gold">Promos</span><span><b>Une carte de promo en packs perd environ 50 % en 9 jours</b> (Raphinha TOTW : 3,3 M → 1,55 M), puis remonte d'environ 15 % quand elle sort des packs. Ne l'achète jamais à sa sortie.</span><span></span></div>
+          <div class="item"><span class="chip gold">Lancement</span><span><b>Les cartes méta de base culminent la semaine de la sortie complète</b> (Raphinha 88 : 390 k → 752 k, Valverde 87 : 220 k → 469 k), puis perdent environ 40 % en trois semaines.</span><span></span></div>
+          <div class="item"><span class="chip buy">Fourrage</span><span><b>Le plancher du fourrage est sa valeur de vente rapide.</b> Eze 84 est descendu à 780 pour une vente rapide à 830, puis il est remonté de +40 % lors d'un gros DCE.</span><span></span></div>
+        </div>
+      </div>
+    </details>
+    <div class="grid2">
+      <div class="panel">
+        <div class="head"><h2>Leaks &amp; pros</h2><span class="hint" id="x-meta"></span></div>
+        <div class="list" id="x-feed"></div>
+      </div>
+      <div class="panel">
+        <div class="head"><h2>Mes plans leak</h2><span class="hint" id="l-stats"></span></div>
+        <div class="list" id="l-list"></div>
+        <details class="box" id="leak-box" style="border:0">
+          <summary style="padding:0">Nouveau plan</summary>
+          <div class="inner" style="padding:12px 0 0">
+            <form id="f-leak">
+              <label class="f">Leak<input id="l-title" required placeholder="ex. DCE 83x2 Upgrade ce soir"></label>
+              <div class="fields">
+                <label class="f">Sortie<input id="l-release" type="datetime-local" required></label>
+                <label class="f">Notes de fourrage<input id="l-ratings" placeholder="ex. 83, 84"></label>
+              </div>
+              <div class="fields">
+                <label class="f">Exemplaires par note<input id="l-qty" inputmode="numeric" value="10"></label>
+                <label class="f">Hausse attendue<select id="l-rise"><option value="10">+10 %</option><option value="15" selected>+15 %</option><option value="25">+25 %</option><option value="40">+40 %</option></select></label>
+              </div>
+              <label class="f">Cartes visées (évolution, grosses affiches…)<input id="l-cards" placeholder="ex. Kroupi, Karl"></label>
+              <input type="hidden" id="l-text">
+              <div><button class="btn gold" type="submit">Créer le plan</button></div>
+            </form>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="head"><h2>DCE du moment</h2><span class="hint" id="sbc-meta"></span></div>
+      <p class="hint">Un DCE cher qui sort fait monter le fourrage des notes demandées. Quand il expire, la demande retombe.</p>
+      <div id="sbc"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <div class="head"><h2>Méta</h2><span class="hint">Cartes les plus consultées sur Futbin</span></div>
+        <p class="hint">Les cartes que tout le monde regarde sont celles que les joueurs veulent : leur prix tient mieux et remonte plus vite après une baisse.</p>
+        <div id="meta"></div>
+      </div>
+      <div class="panel">
+        <div class="head"><h2>Fourrage</h2><span class="hint">Médiane des 5 moins chers</span></div>
+        <div id="fodder"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="head"><h2>Évolutions populaires</h2><span class="hint" id="evo-meta"></span></div>
+      <p class="hint">Les joueurs les plus consultés pour chaque évolution sur Futbin. Leur carte de base explose à la sortie de l'évolution, puis retombe en une semaine. Exemple FC 27, Future Stars Academy : Kroupi 80 est passé de 700 à 7 500 et Karl 77 de 780 à 4 200. La hausse a commencé un à deux jours avant la sortie, et les prix étaient revenus vers 1 000 au bout d'une semaine.</p>
+      <div id="evos"></div>
+    </div>
+
+    <details class="box">
+      <summary>Techniques d'achat-revente</summary>
+      <div class="inner">
+        <p class="hint">Techniques recensées dans les guides FUT (Millenium, Futoir, FUT with Apero, Liquid FC), avec ce que l'appli fait pour chacune. Les budgets et les marges des guides datent de FIFA 23 à FC 24 : vérifie les prix actuels. La colonne « Pour toi » tient compte de ta banque et de ton horizon de 3 jours maximum.</p>
+        <div id="techs"></div>
+      </div>
+    </details>
+  </section>
+
+  <!-- MES TRADES -->
+  <section role="tabpanel" id="tab-trades" hidden>
+    <div class="kv panel" id="t-stats"></div>
+    <details class="box" open>
+      <summary>Ajouter un trade</summary>
+      <div class="inner">
+        <form id="f-trade">
+          <div class="fields">
+            <label class="f">Joueur<input id="t-player" required placeholder="ex. Valverde"></label>
+            <label class="f">Prix d'achat<input id="t-buy" required inputmode="numeric" placeholder="ex. 24 500"></label>
+            <label class="f">Prix de vente<input id="t-sell" inputmode="numeric" placeholder="vide si en cours"></label>
+            <label class="f">Source<select id="t-strategy"><option value="">—</option></select></label>
+          </div>
+          <div class="row"><button class="btn gold" type="submit">Ajouter</button><span class="hint" id="t-calc">Revente minimum pour ne rien perdre : —</span></div>
+        </form>
+      </div>
+    </details>
+    <div class="head">
+      <h2>Journal</h2>
+      <div class="filters" id="t-filters">
+        <button type="button" data-f="open" aria-pressed="true">En cours</button>
+        <button type="button" data-f="sold" aria-pressed="false">Vendus</button>
+        <button type="button" data-f="all" aria-pressed="false">Tous</button>
+      </div>
+    </div>
+    <div id="t-list"></div>
+
+    <details class="box">
+      <summary>Cartes suivies <span class="hint" id="w-count"></span></summary>
+      <div class="inner">
+        <form id="f-watch">
+          <div class="fields">
+            <label class="f">Joueur<input id="w-player" required placeholder="ex. Valverde"></label>
+            <label class="f">Version ou note<input id="w-version" placeholder="ex. 87, TOTW"></label>
+            <label class="f">Achat max<input id="w-max" required inputmode="numeric"></label>
+            <label class="f">Revente visée<input id="w-target" required inputmode="numeric"></label>
+          </div>
+          <div><button class="btn gold" type="submit">Suivre</button></div>
+        </form>
+        <div id="w-list"></div>
+      </div>
+    </details>
+
+    <details class="box">
+      <summary>Calculateur de flip</summary>
+      <div class="inner">
+        <div class="fields">
+          <label class="f">Prix du marché<input id="fl-price" inputmode="numeric" placeholder="ex. 12 750"></label>
+          <label class="f">Marge visée<select id="fl-margin"><option value="5">5 %</option><option value="8" selected>8 %</option><option value="10">10 %</option><option value="15">15 %</option></select></label>
+          <label class="f">Exemplaires<input id="fl-qty" inputmode="numeric" value="10"></label>
+        </div>
+        <div class="kv" id="fl-out"></div>
+      </div>
+    </details>
+  </section>
+
+  <!-- RÉGLAGES -->
+  <section role="tabpanel" id="tab-reglages" hidden>
+    <p class="guard"><b>Lecture seule, toujours.</b> L'appli lit le texte des pages ouvertes dans le navigateur intégré de FUT Trading (web app EA, Futbin, X). Sur la web app EA, elle ne clique jamais, ne tape rien et n'envoie aucune requête. Sur Futbin, elle peut cliquer sur l'onglet « Top Losers » pour afficher les baisses. Les achats et ventes restent faits par toi.</p>
+    <p class="note err" id="cx-unavailable" hidden></p>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>Actualisation</h3>
+        <label class="f">« Tout actualiser » automatiquement
+          <select id="auto-all"><option value="0">Désactivé</option><option value="30">Toutes les 30 min</option><option value="60">Toutes les heures</option></select>
+        </label>
+        <p class="hint">Lit sur Futbin le marché, le fourrage, les DCE, la méta et tes cartes suivies (10 max), puis les comptes X suivis, une page toutes les 3 à 4 secondes. La page doit rester ouverte. Plus souvent que toutes les 30 min, Futbin déclenche sa vérification anti-robot.</p>
+        <p class="hint" id="auto-next"></p>
+      </div>
+
+      <div class="panel">
+        <div class="head"><h3>Web app EA</h3><span class="chip" id="ea-chip">Non lue</span></div>
+        <label class="row" style="font-weight:600"><input type="checkbox" id="ea-live"> Lecture en direct du solde et des compteurs (30 s)</label>
+        <div class="kv" id="ea-stats"></div>
+        <p class="hint" id="ea-live-meta"></p>
+        <div class="row"><button class="btn ghost small" type="button" id="show-browser">Afficher le navigateur</button><button class="btn ghost small" type="button" id="ea-open">Ouvrir la web app</button><button class="btn ghost small" type="button" id="ea-read">Détail des objets (Claude)</button></div>
+        <p class="note" id="ea-note" hidden></p>
+        <div id="imp-body"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Comptes X suivis</h3>
+        <p class="hint">FUT Sheriff pour les leaks, et les joueurs pro de ton choix pour suivre la méta. Les équipes des pros sont souvent publiées en image : seul le texte est lu.</p>
+        <div class="list" id="x-handles"></div>
+        <form id="f-handle" class="row" style="display:flex">
+          <input id="x-new" placeholder="@compte_x" style="flex:1 1 160px" required>
+          <button class="btn small" type="submit">Ajouter</button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h3>Solde manuel</h3>
+        <form id="f-coins" class="row" style="display:flex">
+          <input id="in-coins" inputmode="numeric" placeholder="ex. 160 000" style="flex:1 1 140px">
+          <button class="btn small" type="submit">Enregistrer</button>
+        </form>
+        <p class="hint">Inutile si la lecture en direct de la web app est active.</p>
+      </div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const GOAL = 1000000;
+const BROWSER = 'host:claude_browser';
+const EA_URL = 'https://www.ea.com/ea-sports-fc/ultimate-team/web-app/';
+const FB = {market:'https://www.futbin.com/market', cheapest:'https://www.futbin.com/27/squad-building-challenges/cheapest', sbc:'https://www.futbin.com/squad-building-challenges', popular:'https://www.futbin.com/popular', evos:'https://www.futbin.com/27/popular/evolutions'};
+const S = {db:null, canWrite:false, settings:null, trades:[], watch:[], strategies:[], imp:null, coach:null, market:null, mhist:null, sbc:null, meta:null, feeds:{}, handles:['FutSheriff'], leaks:[], tracks:[], mbplan:null, hrefs:{}, evos:null, tFilter:'open', oFilter:'all'};
+const C = {mcp:null, sample:null, eaTab:lsGet('eaTab'), futbinTab:lsGet('futbinTab'), xTab:lsGet('xTab'), busy:false};
+const $ = s => document.querySelector(s);
+
+function lsGet(k){ try { return localStorage.getItem('fut.'+k); } catch { return null; } }
+function lsSet(k,v){ try { v==null ? localStorage.removeItem('fut.'+k) : localStorage.setItem('fut.'+k,v); } catch {} }
+function h(tag, props, ...kids){
+  const el = document.createElement(tag);
+  for (const [k,v] of Object.entries(props||{})){
+    if (v==null || v===false) continue;
+    if (k==='class') el.className = v;
+    else if (k==='text') el.textContent = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v===true ? '' : v);
+  }
+  for (const k of kids.flat()){ if (k==null || k===false) continue; el.append(k instanceof Node ? k : document.createTextNode(String(k))); }
+  return el;
+}
+const fmt = n => (n==null || isNaN(n)) ? '—' : Math.round(n).toLocaleString('fr-FR');
+const signed = n => (n>0?'+':'') + fmt(n);
+function parseCoins(s){
+  s = String(s??'').trim().toLowerCase().replace(/[\s  ]/g,'');
+  if (!s) return null;
+  let m = 1;
+  if (s.endsWith('k')){ m=1e3; s=s.slice(0,-1); } else if (s.endsWith('m')){ m=1e6; s=s.slice(0,-1); }
+  s = m>1 ? s.replace(',','.') : s.replace(/[.,]/g,'');
+  const v = parseFloat(s);
+  return isFinite(v) && v>=0 ? Math.round(v*m) : NaN;
+}
+const afterTax = sell => Math.floor(sell*0.95);
+const profitOf = t => t.sell!=null ? afterTax(t.sell) - t.buy : null;
+const norm = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+const sameName = (a,b) => { a=norm(a); b=norm(b); if (!a||!b) return false; if (a===b) return true; const la=a.split(' ').pop(), lb=b.split(' ').pop(); return la.length>2 && la===lb; };
+const dayFmt = ms => new Date(ms).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+const whenFmt = ms => new Date(ms).toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'});
+const ago = ms => { const m=Math.round((Date.now()-ms)/60000); if(m<1) return "à l'instant"; if(m<60) return `il y a ${m} min`; const hh=Math.round(m/60); if(hh<24) return `il y a ${hh} h`; return `le ${dayFmt(ms)}`; };
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const lines = t => t.split('\n').map(s=>s.trim()).filter(Boolean);
+const futbinSearch = name => 'https://www.futbin.com/players?search='+encodeURIComponent(name);
+function eaStep(v){ return v<1000?50:v<10000?100:v<50000?250:v<100000?500:1000; }
+const stepDown=v=>{ const s=eaStep(v); return Math.max(s, Math.floor(v/s)*s); };
+const stepUp=v=>{ const s=eaStep(v); return Math.ceil(v/s)*s; };
+const bank = () => S.settings?.coins ?? null;
+
+let toastT;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,3800); }
+function note(sel, msg, kind){ const n=$(sel); n.textContent=msg||''; n.hidden=!msg; n.className='note'+(kind?' '+kind:''); }
+function errMsg(e){
+  if (e?.code==='quota_exceeded') return "La base est pleine : supprime d'anciens trades pour continuer.";
+  if (e?.code==='invalid_argument') return "Tu n'as pas le droit de modifier cette appli.";
+  return "L'enregistrement a échoué. Réessaie dans un instant.";
+}
+async function write(fn, ok){
+  if (!S.db || !S.canWrite){ toast("Enregistrement impossible : l'appli est en lecture seule."); return false; }
+  try { await fn(); if (ok) toast(ok); return true; }
+  catch(e){ if (e?.code==='invalid_argument') S.canWrite=false; toast(errMsg(e)); return false; }
+}
+function confirmBtn(label, onConfirm){
+  let armed=false, t;
+  const b = h('button',{class:'btn ghost small danger',type:'button'},label);
+  b.addEventListener('click',()=>{ if (!armed){ armed=true; b.textContent='Confirmer ?'; t=setTimeout(()=>{armed=false;b.textContent=label;},3000); return; } clearTimeout(t); onConfirm(); });
+  return b;
+}
+function empty(title, text){ return h('div',{class:'empty'}, h('strong',{text:title}), h('span',{text:text})); }
+function setChip(sel,text,cls){ const c=$(sel); c.textContent=text; c.className='chip'+(cls?' '+cls:''); }
+function pressFilters(sel, val){ document.querySelectorAll(sel+' button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.f===val))); }
+
+/* ---------- tabs ---------- */
+const TABS=['jour','marche','trades','reglages'];
+function showTab(id){
+  if (!TABS.includes(id)) id='jour';
+  for (const t of TABS) $('#tab-'+t).hidden = t!==id;
+  document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.tab===id)));
+  try { history.replaceState(null,'','#'+id); } catch {}
+}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+showTab((location.hash||'').slice(1));
+
+/* ---------- browser bridge (read-only) ---------- */
+function resultText(r){ if (typeof r?.payload==='string') return r.payload; return (r?.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n'); }
+function pageBody(t){ const i=t.indexOf('\n---\n'); let b=i>=0?t.slice(i+5):t; const j=b.lastIndexOf('\n\nTab Context:'); if (j>=0) b=b.slice(0,j); return b.trim(); }
+const browser = (tool,input) => C.mcp.callTool(BROWSER,tool,input,{cache:false});
+async function openTab(url){ const r=await browser('preview_start',{url}); const m=resultText(r).match(/"tabId"\s*:\s*"([^"]+)"/); return m?m[1]:null; }
+async function readTab(tabId,max){ const r=await browser('get_page_text', tabId?{tabId,max_chars:max}:{max_chars:max}); const t=resultText(r); return {url:(t.match(/^URL:\s*(\S+)/m)||[])[1]||'', text:pageBody(t), tab:(t.match(/Executed on tabId:\s*(\S+)/)||[])[1]||tabId}; }
+async function goRead(key, url, max){
+  if (C[key]){ try { await browser('navigate',{url,tabId:C[key]}); } catch(e){ if (e?.code!=='tool_error') throw e; C[key]=null; } }
+  if (!C[key]){ C[key]=await openTab(url); lsSet(key,C[key]); }
+  return readTab(C[key], max);
+}
+async function futbin(url, max){
+  const p=await goRead('futbinTab', url, max);
+  if (/just a moment|verify you are human|vérifi/i.test(p.text.slice(0,400))) throw {code:'captcha'};
+  return p.text;
+}
+function browserErr(e){
+  switch(e?.code){
+    case 'captcha': return "Futbin demande une vérification anti-robot : ouvre l'onglet Futbin dans le navigateur intégré et valide-la toi-même.";
+    case 'server_not_connected': return "Le navigateur intégré ne répond pas : clique sur « Afficher le navigateur » dans Réglages.";
+    case 'not_in_manifest': return "L'accès au navigateur a été refusé pour cette page. Réautorise-le dans le menu Autorisations de l'artifact.";
+    case 'approval_required': return "Le navigateur intégré a refusé l'action. Réessaie.";
+    case 'cancelled': return 'Action annulée.';
+    case 'tool_error': return "Le navigateur n'a pas trouvé l'onglet ou la page. Réessaie.";
+    default: return "Le navigateur n'a pas répondu. Réessaie dans un instant.";
+  }
+}
+function sampleErr(e){
+  switch(e?.code){
+    case 'not_granted': return "Tu as refusé que l'appli utilise Claude.";
+    case 'rate_limited': return 'Trop de demandes à Claude. Réessaie dans quelques minutes.';
+    case 'invalid_json': case 'empty_completion': return "Claude n'a pas réussi à lire cette page. Réessaie.";
+    case 'cancelled': return 'Arrêté.';
+    default: return 'La demande à Claude a échoué. Réessaie.';
+  }
+}
+function unavailableMsg(){ return "Le navigateur intégré ne répond pas : clique sur « Afficher le navigateur » dans Réglages."; }
+
+/* ---------- parsers (page text → data) ---------- */
+const isFbPrice=s=>/^\d+(\.\d+)?[KM]?$/i.test(s||'');
+const fbNum=s=>{ const m=String(s).match(/^(\d+(?:\.\d+)?)([KM]?)$/i); if (!m) return null; const u=m[2].toUpperCase(); return Math.round(parseFloat(m[1])*(u==='M'?1e6:u==='K'?1e3:1)); };
+/* Futbin search: rating / name / version / rating / IS / positions… / price */
+function parseFutbin(text){
+  const L=lines(text), out=[], isPos=s=>/^[A-Z]{1,3}\+{0,2}(,\s*(\+\d+|[A-Z]{1,3}))*$/.test(s);
+  for (let i=0;i+4<L.length;i++){
+    if (!/^\d{2,3}$/.test(L[i]) || L[i+3]!==L[i] || !/\p{L}/u.test(L[i+1])) continue;
+    let k=i+4; if (/^\d+$/.test(L[k]) && isPos(L[k+1]||'')) k++;
+    let pos=0; while (k<L.length && isPos(L[k])){ k++; pos++; }
+    if (!pos || !isFbPrice(L[k])) continue;
+    out.push({rating:+L[i], name:L[i+1], version:L[i+2], price:fbNum(L[k])}); i=k;
+  }
+  return out;
+}
+function pickCard(cards, w){
+  const named=cards.filter(c=>sameName(c.name,w.player)); if (!named.length) return null;
+  const v=norm(w.version); let pool=named;
+  if (!v) pool=named.filter(c=>['normal','rare','non rare','common'].includes(norm(c.version)));
+  else if (/^\d{2,3}$/.test(v)) pool=named.filter(c=>String(c.rating)===v);
+  else pool=named.filter(c=>{ const cv=norm(c.version); return cv.includes(v)||v.includes(cv); });
+  if (!pool.length) return null;
+  const exact=pool.filter(c=>norm(c.name)===norm(w.player));
+  return (exact.length?exact:pool).sort((a,b)=>b.rating-a.rating)[0];
+}
+/* Futbin market: indices, momentum, top gainers / losers (price, qs, rating, pos, [++], name, …, change %) */
+function parseMovers(L){
+  const out=[];
+  for (let i=0;i+5<L.length;i++){
+    if (!isFbPrice(L[i]) || !isFbPrice(L[i+1]) || !/^\d{2}$/.test(L[i+2]) || !/^[A-Z]{1,3}$/.test(L[i+3])) continue;
+    let j=i+4; if (L[j]==='++') j++;
+    let k=j+1; while (k<L.length && k<j+7 && !/^\d+(\.\d+)?%$/.test(L[k])) k++;
+    if (!/%$/.test(L[k]||'')) continue;
+    out.push({price:fbNum(L[i]), rating:+L[i+2], pos:L[i+3], name:L[j], pct:parseFloat(L[k])}); i=k;
+  }
+  return out;
+}
+function parseMarket(text){
+  const L=lines(text), r={indices:{}, momentum:null, gainers:[], losers:[]};
+  for (let i=0;i<L.length-1;i++){
+    const m=L[i].match(/^Index (100|8\d|Icons)$/i);
+    if (m && /^\d+(\.\d+)?$/.test(L[i+1])) r.indices[m[1]]=parseFloat(L[i+1]);
+    if (/^market momentum$/i.test(L[i])){ const v=parseFloat(L[i+1]); if (!isNaN(v)) r.momentum=v; }
+  }
+  // Wide layout: "Top Gainers" list then "Top Losers" list. Narrow layout: the two titles are tabs side by side and only the gainers list is shown.
+  const end=L.findIndex(s=>/^top index 100 movers$/i.test(s)), stop=end>=0?end:L.length;
+  const heads=[]; for (let i=0;i<stop;i++) if (/^top (gainers|losers)$/i.test(L[i])) heads.push(i);
+  heads.forEach((hi,n)=>{
+    const list=parseMovers(L.slice(hi+1, n+1<heads.length?heads[n+1]:stop)).slice(0,60);
+    const key=/gainers/i.test(L[hi])?'gainers':'losers';
+    if (list.length && !r[key].length) r[key]=list;
+  });
+  return r;
+}
+/* Futbin cheapest by rating: "<rating>" "Rated Players" then name / (POS) / price / qs */
+function parseCheapest(text){
+  const L=lines(text), out={}; let cur=null;
+  for (let i=0;i<L.length;i++){
+    if (/^\d{2}$/.test(L[i]) && /^rated players$/i.test(L[i+1]||'')){ cur=+L[i]; out[cur]=[]; i++; continue; }
+    if (cur && /^\([A-Z]{1,3}\)$/.test(L[i+1]||'') && isFbPrice(L[i+2]||'')){ out[cur].push({name:L[i], price:fbNum(L[i+2]), qs:isFbPrice(L[i+3]||'')?fbNum(L[i+3]):null}); i+=2; }
+  }
+  const fodder={}, names={}, qs={};
+  for (const [r,list] of Object.entries(out)){
+    if (+r<81 || +r>90 || !list.length) continue;
+    const ps=list.map(x=>x.price).sort((a,b)=>a-b).slice(0,5);
+    fodder[r]=ps[Math.floor(ps.length/2)];
+    names[r]=list.slice().sort((a,b)=>a.price-b.price).slice(0,3).map(x=>x.name);
+    const q=list.map(x=>x.qs).filter(Boolean).sort((a,b)=>a-b); if (q.length) qs[r]=q[0];   // quick-sell value: the price floor of that rating
+  }
+  return {fodder, names, qs};
+}
+/* Futbin SBC list: blocks ending with "Votes": title, [NEW|EXPIRING SOON], Reward, reward, …, EXPIRES, when, …, cost */
+function parseSbc(text){
+  const L=lines(text), out=[], si=L.findIndex(s=>/^sorting$/i.test(s));
+  let start=si+1;
+  for (let i=start;i<L.length;i++){
+    if (!/^votes$/i.test(L[i])) continue;
+    const B=L.slice(start,i), first=start===si+1; start=i+1;
+    const e=B.findIndex(s=>/^expires$/i.test(s)); let r=-1;
+    for (let q=0;q<e;q++) if (/^reward$/i.test(B[q])) r=q;   // last "Reward" before EXPIRES (the filter bar also has one)
+    if (r<0 || e<0) continue;
+    let cost=null; for (let k=e+2;k<Math.min(B.length,e+9);k++) if (/^\d+(\.\d+)?[KM]$/i.test(B[k])){ cost=fbNum(B[k]); break; }
+    // Title is the block's first line, unless the page header leaked into the first block (no "Sorting" line):
+    // then take the player name (name / rating / position) or the line just before the NEW / EXPIRING flags.
+    let ti=0;
+    if (first && si<0){
+      const k=B.findIndex((s,q)=>q<r && /\p{L}/u.test(s) && /^\d{2}$/.test(B[q+1]||'') && /^[A-Z]{2,3}$/.test(B[q+2]||''));
+      let j=r-1; while (j>0 && /^(NEW|EXPIRING SOON)$/.test(B[j])) j--;
+      ti = /^(PHY|POS)$/.test(B[j]) && k>=0 ? k : j;
+    }
+    const title=B[ti], flags=B.slice(ti,r);
+    out.push({title, reward:B[r+1]||'', isNew:flags.includes('NEW'), expiring:flags.includes('EXPIRING SOON'), expires:B[e+1]||'', cost});
+  }
+  return out.slice(0,40);
+}
+/* Futbin popular: price, qs, rating, pos, …, name, 6 stat pairs, views */
+function parsePopular(text){
+  const L=lines(text), out=[]; let prev=0;
+  for (let i=1;i+13<L.length;i++){
+    if (!/^\d{2}$/.test(L[i+1]) || !/^(PAC|DIV)$/.test(L[i+2]) || !/\p{L}/u.test(L[i]) || /^(PAC|SHO|PAS|DRI|DEF|PHY|DIV|HAN|KIC|REF|SPD|POS)$/.test(L[i])) continue;
+    const B=L.slice(prev,i), ri=B.findIndex((s,k)=>/^\d{2}$/.test(s) && /^[A-Z]{2,3}$/.test(B[k+1]||''));
+    if (ri>=0){ const nums=B.slice(0,ri).filter(isFbPrice).map(fbNum); out.push({name:L[i], rating:+B[ri], pos:B[ri+1], price:nums.length>=2?nums[nums.length-2]:null, views:+L[i+13]||null}); }
+    prev=i+14; i+=13;
+  }
+  return out.slice(0,40);
+}
+/* Futbin popular evolutions: same card block as popular players, then the evolution name and the view count */
+function parseEvoPopular(text){
+  const L=lines(text), out=[]; let prev=0;
+  for (let i=1;i+14<L.length;i++){
+    if (!/^\d{2}$/.test(L[i+1]) || !/^(PAC|DIV)$/.test(L[i+2]) || !/\p{L}/u.test(L[i]) || /^(PAC|SHO|PAS|DRI|DEF|PHY|DIV|HAN|KIC|REF|SPD|POS)$/.test(L[i])) continue;
+    const B=L.slice(prev,i), ri=B.findIndex((s,k)=>/^\d{2}$/.test(s) && /^[A-Z]{2,3}$/.test(B[k+1]||''));
+    const evo=L[i+13], views=+L[i+14];
+    if (ri>=0 && /\p{L}/u.test(evo) && views) out.push({name:L[i], rating:+B[ri], pos:B[ri+1], evo, views});
+    prev=i+15; i+=14;
+  }
+  return out;
+}
+/* EA web app: screen title, coins, points, then labelled counters */
+const EA_COUNTS={selling:['en vente','selling','active transfers'], sold:['vendus','sold'], won:['gagnes','won'], outbid:['surench','outbid']};
+function parseEA(text){
+  const L=lines(text), num=s=>/^\d{1,3}([\s  .,]\d{3})*$/.test(s||'') ? Number(s.replace(/\D/g,'')) : null;
+  const r={screen:L[0]||'', coins:null, counts:{}, login:L.length<6 && /login|connexion|sign in/i.test(text)};
+  for (let i=1;i<Math.min(L.length,6);i++){ const n=num(L[i]); if (n!=null){ r.coins=n; break; } }
+  for (let i=0;i<L.length-1;i++){ const lab=norm(L[i]); for (const [k,names] of Object.entries(EA_COUNTS)) if (r.counts[k]==null && names.includes(lab)){ const n=num(L[i+1]); if (n!=null) r.counts[k]=n; } }
+  return r;
+}
+/* X profile: "<name>" "@handle" "<time>" then text, then counters */
+const isXTime=s=>/^\d+\s?(s|min|m|h)$/i.test(s)||/^\d{1,2}\s\p{L}{3,5}\.?(\s\d{4})?$/u.test(s)||/^\p{L}{3}\s\d{1,2}(,\s\d{4})?$/u.test(s);
+function parseX(text, handle){
+  const L=lines(text), heads=[], out=[], me='@'+handle.toLowerCase();
+  for (let i=0;i+2<L.length;i++) if (/^@\w+$/.test(L[i+1]) && isXTime(L[i+2])) heads.push({i, author:L[i+1].toLowerCase()});
+  heads.forEach((hd,n)=>{
+    if (hd.author!==me) return;
+    const body=L.slice(hd.i+3, n+1<heads.length?heads[n+1].i:L.length);
+    while (body.length && /^[\d.,]+\s?(k|K|M|Md|B)?$/.test(body[body.length-1])) body.pop();
+    if (body.length) out.push({time:L[hd.i+2], text:body.join('\n').slice(0,700), pinned:/^(Épinglé|Pinned)$/i.test(L[hd.i-1]||'')});
+  });
+  return out;
+}
+function relAt(t, now){ const m=t.match(/^(\d+)\s?(s|min|m|h)$/i); if (!m) return null; const u=m[2].toLowerCase(); return now - (+m[1])*(u==='h'?3600e3:u==='s'?1e3:60e3); }
+const EVO_RE=/\bevo(lution)?s?\b|academy|académie/i;
+const EVO_TIP='repère 3 à 5 cartes de base éligibles bon marché (jeunes, bonnes stats, postes offensifs) et achète-les au plancher avant la sortie. Revends le jour même ou le lendemain. Sur FC 27, la Future Stars Academy a fait passer Kroupi de 700 à 7 500 et Karl de 780 à 4 200, avant une retombée en une semaine.';
+const LEAK_CUES=/(coming|soon|leak|breaking|tomorrow|tonight|demain|ce soir|\b\d{1,2}\s?pm\b|content|upgrade|\b\d{2}\+?\s*x\s*\d|\bx\d\b|predict|\bevo(lution)?s?\b|academy|marquee)/i;
+const LEAK_RE={test:t=>LEAK_CUES.test(t) && !/patreon|completed|giveaway/i.test(t)};
+function guessRatings(text){
+  const out=new Set(); let m; const re=/\b(8\d|9[0-3])\s*\+?\s*x\s*\d{1,2}\b|\b\d{1,2}\s*x\s*(8\d|9[0-3])\+?/gi;
+  while ((m=re.exec(text))) out.add(+(m[1]||m[2]));
+  if (!out.size){ const re2=/\b(8[1-9]|90)\+?(?=\s|$|[^\d%])/g; while ((m=re2.exec(text))) out.add(+m[1]); }
+  return [...out].sort((a,b)=>a-b);
+}
+
+/* Futbin player "Market" tab: 5 cheapest BINs after "Trend:", EA price range, discard and EA average prices,
+   then "Player Sales History" rows: "Oct 20, 9:52 PM" followed by "listed  sold  tax  net" (sold 0 = expired). */
+function parseSales(text){
+  const L=lines(text), n=s=>Number(String(s).replace(/[^\d]/g,'')), r={bins:[], range:null, discard:null, eaAvg:null, sales:[]};
+  const ti=L.findIndex(s=>/^trend:$/i.test(s));
+  if (ti>=0) for (let i=ti+1;i<ti+9 && i<L.length;i++){ if (/^[\d,]+$/.test(L[i])) r.bins.push(n(L[i])); else if (r.bins.length) break; }
+  const ri=L.findIndex(s=>/^price range:?$/i.test(s)); if (ri>=0){ const m=(L[ri+1]||'').match(/([\d,]+)\s*-\s*([\d,]+)/); if (m) r.range=[n(m[1]),n(m[2])]; }
+  const di=L.findIndex(s=>/^discard price$/i.test(s)); if (di>=0) r.discard=n(L[di+1]);
+  const ei=L.findIndex(s=>/^ea avg\.? price$/i.test(s)); if (ei>=0) r.eaAvg=n(L[ei+1]);
+  const hi=L.findIndex(s=>/^player sales history$/i.test(s)), yr=new Date().getFullYear();
+  for (let i=Math.max(0,hi);i<L.length-1;i++){
+    if (!/^[A-Z][a-z]{2} \d{1,2}, \d{1,2}:\d{2} [AP]M$/.test(L[i])) continue;
+    const nums=L[i+1].split(/\s+/).filter(x=>/^[\d,]+$/.test(x)).map(n);
+    if (nums.length<2) continue;
+    let t=Date.parse(L[i].replace(',', ' '+yr+',')); if (t>Date.now()+864e5) t=Date.parse(L[i].replace(',', ' '+(yr-1)+','));
+    r.sales.push({t, listed:nums[0], sold:nums[1]}); i++;
+  }
+  return r;
+}
+function salesStats(p){
+  const ok=p.sales.filter(s=>s.sold>0), sold=ok.map(s=>s.sold).sort((a,b)=>a-b);
+  if (!sold.length) return null;
+  const q=f=>sold[Math.min(sold.length-1,Math.floor(f*sold.length))];
+  const ts=ok.map(s=>s.t), span=Math.max(0.1,(Math.max(...ts)-Math.min(...ts))/3600e3);
+  return {n:ok.length, perHour:ok.length/span, median:q(0.5), p20:q(0.2), minBin:p.bins.length?Math.min(...p.bins):q(0.5), last:ok[0]?.sold, range:p.range, eaAvg:p.eaAvg};
+}
+// Futbin player URL from the search page: the k-th card row with that full name is the k-th link with that name.
+async function playerHref(name, rating){
+  const key=norm(name)+'|'+(rating||'');
+  if (S.hrefs[key]) return S.hrefs[key];
+  const cards=parseFutbin(await futbin(futbinSearch(name),9000));
+  const target=pickCard(cards,{player:name, version:rating?String(rating):''}) || cards.find(c=>sameName(c.name,name));
+  if (!target) return null;
+  const k=cards.filter(c=>c.name===target.name).indexOf(target);
+  const found=resultText(await browser('find',{tabId:C.futbinTab, query:target.name}));
+  const hrefs=[...found.matchAll(/link "[^"]*" \[ref_\d+\] href="(\/\d+\/player\/\d+\/[^"]+)"/g)].map(m=>m[1]);
+  const href=hrefs[Math.max(0,k)]||null;
+  if (href){ S.hrefs={...S.hrefs,[key]:href}; await write(()=>S.db.doc('config/hrefs').set({map:S.hrefs})); }
+  return href;
+}
+async function readSales(href){ return parseSales(await futbin('https://www.futbin.com'+href+'/market', 20000)); }
+
+/* ---------- measuring advice: every buy idea is paper-traded on real Futbin sales ---------- */
+const TRACK_MAX=8;
+async function autoTrack(){
+  const open=S.tracks.filter(t=>t.status==='open'), now=Date.now();
+  let players=open.filter(t=>t.kind==='player').length;
+  for (const o of buildOpps().filter(o=>o.act==='buy' && o.bid && o.sell)){
+    const key=o.pname ? 'p:'+norm(o.pname)+'|'+o.prating : 'f:'+o.frating;
+    if (S.tracks.some(t=>t.key===key && now-t.createdAt<48*3600e3)) continue;
+    if (o.pname && players>=TRACK_MAX) continue;
+    if (o.pname) players++;
+    await write(()=>S.db.collection('track').add({key, kind:o.pname?'player':'fodder', src:o.src, title:o.title, name:o.pname||null, rating:o.prating||o.frating||null,
+      bid:o.bid, sell:o.sell, createdAt:now, until:now+(o.src==='Fourrage'||o.src==='Mass bid'?72:48)*3600e3, fillAt:null, hitAt:null, last:null, checkedAt:now, status:'open'}));
+  }
+}
+async function updateTracks(step){
+  const now=Date.now();
+  for (const t of S.tracks.filter(t=>t.status==='open')){
+    const upd={};
+    if (t.kind==='fodder'){
+      const p=S.market?.fodder?.[t.rating]; if (p==null) continue;
+      upd.last=p; if (!t.fillAt && p<=t.bid) upd.fillAt=now; if ((t.fillAt||upd.fillAt) && p>=t.sell && !t.hitAt) upd.hitAt=now;
+    } else {
+      step?.(`Résultats : ${t.name}…`); await sleep(3500);
+      const href=t.href || await playerHref(t.name, t.rating); if (!href) continue;
+      if (!t.href) upd.href=href;
+      const sales=(await readSales(href)).sales.filter(s=>s.sold>0 && s.t>(t.checkedAt||t.createdAt)-60e3).sort((a,b)=>a.t-b.t);
+      let fill=t.fillAt, hit=t.hitAt;
+      for (const s of sales){ if (!fill && s.sold<=t.bid) fill=s.t; else if (fill && !hit && s.t>fill && s.sold>=t.sell) hit=s.t; }
+      if (fill!==t.fillAt) upd.fillAt=fill; if (hit!==t.hitAt) upd.hitAt=hit;
+      if (sales.length) upd.last=sales.at(-1).sold;
+      upd.checkedAt=now;
+    }
+    if (now>t.until){
+      const fill=upd.fillAt??t.fillAt, hit=upd.hitAt??t.hitAt, last=upd.last??t.last;
+      upd.status='closed'; upd.filled=!!fill; upd.hit=!!hit;
+      upd.net = hit ? afterTax(t.sell)-t.bid : fill && last ? afterTax(last)-t.bid : 0;
+    }
+    if (Object.keys(upd).length) await write(()=>S.db.doc('track/'+t.id).update(upd));
+  }
+}
+function trackStats(){
+  const by={};
+  for (const t of S.tracks.filter(t=>t.status==='closed')){ const b=by[t.src]=by[t.src]||{n:0,filled:0,hit:0,net:0}; b.n++; if (t.filled) b.filled++; if (t.hit) b.hit++; b.net+=t.net||0; }
+  return by;
+}
+function renderTracks(){
+  const by=trackStats(), open=S.tracks.filter(t=>t.status==='open').length, rows=Object.entries(by);
+  $('#tr-meta').textContent = open ? `${open} conseil${open>1?'s':''} en cours de suivi` : '';
+  if (!rows.length){ $('#tr-results').replaceChildren(empty(open?'Premiers résultats dans 48 h':'Aucun suivi pour l’instant', open?'Les conseils sont suivis à chaque actualisation : reviens dans 2 jours pour voir s’ils rapportent.':'« Tout actualiser » lance le suivi des conseils d’achat affichés.')); return; }
+  const tot=rows.reduce((a,[,b])=>({n:a.n+b.n,net:a.net+b.net}),{n:0,net:0});
+  $('#tr-results').replaceChildren(h('div',{style:'overflow-x:auto'},h('table',null,
+    h('thead',null,h('tr',null,['Source','Suivis','Achat possible','Revente atteinte','Profit moyen','Total'].map((x,i)=>h('th',{class:i?'r':null,text:x})))),
+    h('tbody',null,rows.map(([src,b])=>h('tr',null,h('td',null,h('b',{text:src})),h('td',{class:'r num',text:b.n}),h('td',{class:'r num',text:Math.round(b.filled/b.n*100)+' %'}),h('td',{class:'r num',text:Math.round(b.hit/b.n*100)+' %'}),
+      h('td',{class:'r num '+(b.net>0?'pos':b.net<0?'neg':''),text:signed(b.net/b.n)}),h('td',{class:'r num '+(b.net>0?'pos':b.net<0?'neg':''),text:signed(b.net)})))),
+    h('tfoot',null,h('tr',null,h('td',null,h('b',{text:'Total'})),h('td',{class:'r num',text:tot.n}),h('td'),h('td'),h('td',{class:'r num',text:signed(tot.net/tot.n)}),h('td',{class:'r num '+(tot.net>0?'pos':'neg'),text:signed(tot.net)}))))));
+}
+
+/* ---------- mass bidding plan from real completed sales ---------- */
+async function massBidPlan(){
+  if (!C.mcp) return note('#mb-note', unavailableMsg(), 'err');
+  if (C.busy) return note('#mb-note','Une actualisation est en cours : réessaie dans une minute.','err');
+  const b=bank()||100000, cap=b*0.25;
+  const cands=[];
+  const add=(name,rating,price)=>{ if (!name||!price||price<2000||price>cap) return; if (cands.some(c=>sameName(c.name,name)&&c.rating===rating)) return; cands.push({name,rating,price}); };
+  for (const p of (S.meta?.players||[])) add(p.name,p.rating,p.price);
+  for (const r of ['85','86','87','88','89']) add(S.market?.fodderNames?.[r]?.[0], +r, S.market?.fodder?.[r]);
+  for (const w of S.watch) add(w.player, Number(w.version)||null, (w.prices||[]).at(-1)?.p);
+  const pick=cands.sort((a,b)=>b.price-a.price).slice(0,8);
+  if (!pick.length) return note('#mb-note','Lance d’abord « Tout actualiser » pour connaître la méta et le fourrage du moment.','err');
+  C.busy=true; $('#mb-go').disabled=true; const out=[];
+  try {
+    for (const [i,c] of pick.entries()){
+      note('#mb-note',`Lecture des ventes ${i+1}/${pick.length} : ${c.name}…`);
+      if (i) await sleep(3500);
+      const href=await playerHref(c.name,c.rating); if (!href) continue;
+      await sleep(2500);
+      const parsed=await readSales(href), st=salesStats(parsed); if (!st) continue;
+      // Resell one step under the cheapest listing; the bid keeps a 5 % net margin after EA tax.
+      const list=Math.max(st.range?.[0]||0, st.minBin-eaStep(st.minBin)), bid=stepDown(afterTax(list)/1.05);
+      if (st.range && bid<st.range[0]) continue;
+      const done=parsed.sales.filter(s=>s.sold>0), reach=done.filter(s=>s.sold<=bid).length/Math.max(1,done.length);
+      out.push({...c, href, perHour:+st.perHour.toFixed(1), median:st.median, minBin:st.minBin, list, bid, net:afterTax(list)-bid, reach:Math.round(reach*100), range:st.range});
+    }
+    // Liquid cards first, then the ones where some recent sales already went at or below the bid.
+    const plan=out.filter(c=>c.perHour>=6 && c.net>0).sort((a,b)=>(b.net*Math.min(b.perHour,30)*(0.2+b.reach/100))-(a.net*Math.min(a.perHour,30)*(0.2+a.reach/100))).slice(0,4);
+    const per=(b*0.5)/Math.max(1,plan.length);
+    for (const c of plan) c.copies=Math.max(1,Math.min(20,Math.floor(per/c.bid)));
+    await write(()=>S.db.doc('plans/massbid').set({at:Date.now(), bank:b, cards:plan}));
+    note('#mb-note', plan.length ? `Plan prêt : ${plan.length} carte${plan.length>1?'s':''}. Elles sont aussi ajoutées au suivi des résultats.` : 'Aucune carte assez liquide et rentable pour l’instant : réessaie après la prochaine actualisation.', plan.length?'ok':'err');
+  } catch(e){ note('#mb-note', browserErr(e), 'err'); }
+  finally { C.busy=false; $('#mb-go').disabled=false; }
+  await sleep(1500); if (S.mbplan?.cards?.length) await autoTrack();
+}
+$('#mb-go').addEventListener('click', massBidPlan);
+function renderMassBid(){
+  const p=S.mbplan, cards=p?.cards||[];
+  if (!cards.length){ $('#mb-plan').replaceChildren(empty('Pas encore de plan','« Calculer mon plan » lit les ventes réelles de 8 cartes très échangées dans ton budget (environ 1 minute).')); return; }
+  const fresh=Date.now()-p.at<12*3600e3;
+  const tot=cards.reduce((a,c)=>({cap:a.cap+c.bid*c.copies, net:a.net+c.net*c.copies}),{cap:0,net:0});
+  $('#mb-plan').replaceChildren(
+    h('div',{class:'tablebox'},h('table',null,h('thead',null,h('tr',null,['Carte','Ventes / h','Prix payé (médiane)','Enchère max','Revente','Net / carte','Exemplaires',''].map((x,i)=>h('th',{class:i&&i<7?'r':null,text:x})))),
+      h('tbody',null,cards.map(c=>h('tr',null,h('td',null,h('b',{text:c.name}),h('span',{class:'muted',text:' '+(c.rating||'')}), h('div',{class:'hint',text:`${c.reach} % des dernières ventes à ce prix ou moins`})),
+        h('td',{class:'r num',text:c.perHour}),h('td',{class:'r num',text:fmt(c.median)}),h('td',{class:'r num',text:fmt(c.bid)}),h('td',{class:'r num',text:fmt(c.list)}),
+        h('td',{class:'r num pos',text:signed(c.net)}),h('td',{class:'r num',text:c.copies}),
+        h('td',{class:'r'},h('a',{class:'btn ghost small',href:'https://www.futbin.com'+c.href+'/market',target:'_blank',rel:'noopener',text:'Ventes'}))))))),
+    h('p',{class:'hint'},`Capital si toutes les enchères passent : `,h('b',{class:'num',text:fmt(tot.cap)}),` · profit si tout est revendu : `,h('b',{class:'num pos',text:signed(tot.net)}),`. En pratique, tu ne remportes qu’une partie des enchères. Plan calculé ${ago(p.at)}${fresh?'':' : recalcule-le, les prix ont bougé'}.`),
+    h('ol',{class:'hint',style:'margin:0;padding-left:18px'},
+      h('li',{text:'Vers 21h (idéalement le jeudi), cherche chaque carte sur la web app, triée par fin d’enchère.'}),
+      h('li',{text:'Enchéris au maximum le montant « Enchère max » sur les enchères qui finissent dans l’heure, jusqu’au nombre d’exemplaires indiqué.'}),
+      h('li',{text:'Remets chaque carte gagnée en vente en achat immédiat au prix « Revente », pour 1 h, de préférence vers 8h. Si elle ne part pas, baisse d’un palier.'}),
+      h('li',{text:'Note chaque achat dans « Mes trades » pour suivre ton vrai profit.'})));
+}
+
+/* ---------- refresh everything (Futbin + X), one page at a time ---------- */
+async function refreshAll(){
+  if (!C.mcp){ note('#run-note', unavailableMsg(), 'err'); return; }
+  if (C.busy) return;
+  C.busy=true; $('#go-all').disabled=true;
+  const step=m=>{ $('#h-refresh').textContent=m; };
+  const errors=[];
+  try {
+    step('Marché…');
+    const mk=parseMarket(await futbin(FB.market,30000));
+    if (mk.gainers.length && !mk.losers.length){
+      // Narrow pane: Futbin shows gainers and losers as two tabs. Open its "Top Losers" tab (a Futbin page control, never EA) and read again.
+      try {
+        const found=resultText(await browser('find',{tabId:C.futbinTab, query:'Top Losers'}));
+        const ref=(found.match(/button "Top Losers" \[(ref_\d+)\]/)||[])[1];
+        if (ref){ await browser('computer',{action:'left_click', ref, tabId:C.futbinTab, action_summary:'Ouvre l’onglet Top Losers de la page marché de Futbin'}); await sleep(1500);
+          mk.losers=parseMarket((await readTab(C.futbinTab,30000)).text).losers; }
+      } catch {}
+      if (!mk.losers.length) errors.push('baisses du jour (agrandis la fenêtre du navigateur intégré)');
+    }
+    await sleep(3000);
+    step('Fourrage…');
+    const ch=parseCheapest(await futbin(FB.cheapest,30000)); await sleep(3000);
+    const at=Date.now();
+    if (Object.keys(mk.indices).length || mk.losers.length || Object.keys(ch.fodder).length){
+      await write(()=>S.db.doc('market/latest').set({at, indices:mk.indices, momentum:mk.momentum, gainers:mk.gainers, losers:mk.losers, fodder:ch.fodder, fodderNames:ch.names, fodderQS:ch.qs}));
+      const snaps=[...(S.mhist?.snaps||[]), {at, i100:mk.indices['100']??null, mom:mk.momentum, fodder:ch.fodder}].slice(-300);
+      await write(()=>S.db.doc('market/history').set({snaps}));
+    } else errors.push('marché (page Futbin illisible : Futbin a peut-être changé sa page)');
+    step('DCE…');
+    const sbc=parseSbc(await futbin(FB.sbc,30000)); await sleep(3000);
+    if (sbc.length){ const first=!S.sbc?.list?.length || Object.keys(S.sbc.seen||{}).includes('home'), seen=first?{}:{...(S.sbc.seen||{})};
+      for (const s of sbc) if (seen[norm(s.title)]==null) seen[norm(s.title)]=first?0:at;
+      for (const k of Object.keys(seen)) if (seen[k] && at-seen[k]>14*864e5) delete seen[k];
+      await write(()=>S.db.doc('market/sbc').set({at, list:sbc, seen})); } else errors.push('DCE');
+    step('Méta…');
+    const pop=parsePopular(await futbin(FB.popular,30000));
+    if (pop.length){ const prev={}; for (const p of (S.meta?.players||[])) prev[norm(p.name)+p.rating]=p.price;
+      await write(()=>S.db.doc('market/meta').set({at, players:pop, prev})); } else errors.push('méta');
+    await sleep(3000); step('Évolutions…');
+    const ev=parseEvoPopular(await futbin(FB.evos,30000));
+    if (ev.length){ const first=!S.evos?.seen, seen={...(S.evos?.seen||{})};
+      for (const e of ev) if (seen[e.evo]==null) seen[e.evo]=first?0:at;
+      // one row per player name (the most viewed evolution of that player)
+      const players=[]; for (const e of ev) if (!players.some(p=>sameName(p.name,e.name))) players.push(e);
+      await write(()=>S.db.doc('market/evos').set({at, players:players.slice(0,30), seen})); } else errors.push('évolutions');
+    for (const [i,w] of S.watch.slice(0,6).entries()){
+      await sleep(3500); step(`Suivi ${i+1}/${Math.min(6,S.watch.length)}…`);
+      const card=pickCard(parseFutbin(await futbin(futbinSearch(w.player),9000)), w);
+      const cur=S.watch.find(x=>x.id===w.id);
+      if (card?.price>0 && cur) await write(()=>S.db.doc('watch/'+cur.id).update({prices:[...(cur.prices||[]),{p:card.price,at:Date.now(),src:'Futbin'}].slice(-60)}));
+    }
+    await updateTracks(step);
+    await readFeeds(step);
+    await autoTrack();
+    if (errors.length) note('#run-note', `Non lu : ${errors.join(', ')}.`, 'err'); else note('#run-note','');
+    lsSet('lastRun', String(Date.now()));
+  } catch(e){ note('#run-note', browserErr(e), 'err'); if (e?.code==='captcha') setAutoAll(0); }
+  finally { C.busy=false; $('#go-all').disabled=false; renderRefresh(); scheduleAutoAll(); }
+}
+async function readFeeds(step){
+  let fresh=0;
+  for (const handle of S.handles){
+    step?.(`X @${handle}…`); await sleep(2500);
+    const page=await goRead('xTab','https://x.com/'+handle, 20000);
+    let posts=parseX(page.text, handle);
+    if (!posts.length){ await sleep(3000); posts=parseX((await readTab(C.xTab,20000)).text, handle); }
+    if (!posts.length) continue;
+    const key=handle.toLowerCase(), known=S.feeds[key]?.posts||[], keys=new Set(known.map(p=>p.key)), now=Date.now();
+    const add=posts.filter(p=>!keys.has(norm(p.text).slice(0,140))).map(p=>({key:norm(p.text).slice(0,140), text:p.text, time:p.time, at:relAt(p.time,now), pinned:p.pinned, seenAt:now}));
+    if (!add.length && known.length) continue;
+    await write(()=>S.db.doc('feed/'+key).set({handle, posts:[...add,...known].slice(0,40), at:now}));
+    if (known.length){ const real=add.filter(p=>!p.pinned); fresh+=real.length; if (real.length) toast(`@${handle} : ${real[0].text.split('\n')[0].slice(0,90)}`); }
+  }
+  if (fresh) document.title=`(${fresh}) Trading FUT`;
+}
+$('#go-all').addEventListener('click', refreshAll);
+document.addEventListener('visibilitychange',()=>{ if (!document.hidden) document.title='Trading FUT'; });
+
+let autoT=null, autoAt=null;
+function scheduleAutoAll(){
+  clearTimeout(autoT); autoT=null; autoAt=null;
+  const m=Number(lsGet('autoAll'))||0;
+  if (m && C.mcp && S.db){ autoAt=Date.now()+m*60000; autoT=setTimeout(refreshAll, m*60000); }
+  $('#auto-next').textContent = autoAt ? 'Prochaine actualisation vers '+new Date(autoAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'.' : '';
+}
+function setAutoAll(m){ lsSet('autoAll', m?String(m):null); $('#auto-all').value=String(m||0); scheduleAutoAll(); }
+if (Number(lsGet('autoAll'))===15) lsSet('autoAll','30');   // 15 min trips Futbin's bot check
+$('#auto-all').value=String(Number(lsGet('autoAll'))||0);
+$('#auto-all').addEventListener('change',e=>setAutoAll(Number(e.target.value)));
+function renderRefresh(){ const t=Number(lsGet('lastRun'))||S.market?.at; $('#h-refresh').textContent = t ? 'Actualisé '+ago(t) : 'Jamais actualisé'; }
+
+/* ---------- market model (from Futbin index history, FC 26 full season + FC 27 launch) ----------
+   Season: normal cards fall ~50 % from launch to January, flat until March, then climb strongly to the end of the game.
+   Ratings 85+, 86 and icons fall all season (−70 % to −87 %). Fodder 81–83 is flat, then climbs from spring.
+   Week (FC 26 index, median daily change): Tue +2.7 %, Fri −3.1 %, Thu and Sat −1 %. Day and week timing: see timing() below.
+   Fodder floor is its quick-sell value; SBC spikes reach +30–50 %. Pack promo cards lose ~50 % in their first 9 days. */
+function seasonPhase(d=new Date()){
+  const m=d.getMonth()+1, day=d.getDate();
+  // The season only sets the background trend (how fast an unsold card loses value), never a buy-and-hold plan.
+  if ((m===9 && day>=15) || m===10) return {key:'launch', label:'Lancement', down:true, text:'Tout baisse vite (−44 % en un mois sur FC 27) : une carte invendue perd environ 1,5 % par jour. Revends dans la journée.'};
+  if (m===11 || m===12) return {key:'autumn', label:'Automne', down:true, text:'Les cartes normales baissent encore jusqu’à janvier : revends en 24–48 h, ne garde rien.'};
+  if (m<=3) return {key:'winter', label:'Hiver', down:false, text:'Marché stable : les flips de 2 à 4 jours (achat le jeudi, vente le lundi) marchent bien.'};
+  if (m<=5) return {key:'spring', label:'Printemps', down:false, text:'Les cartes normales et le petit fourrage montent : une carte invendue gagne de la valeur, le risque est plus faible.'};
+  return {key:'summer', label:'Été', down:false, text:'Cartes normales et petit fourrage chers et volatils, 85+ et icônes toujours en baisse : flips rapides uniquement.'};
+}
+/* Timing from Futbin "Market timing" (FC 27, 4.4 M card-hours, 400+ coins): cheapest hour 21h (−3 %), dearest 8h (+4.5 %),
+   cheapest day Thursday (−2.7 %), dearest Monday (+2.8 %). Futbin calls it a weak pattern: it nudges the ranking, nothing more. */
+function timing(d=new Date()){
+  const wd=d.getDay(), hr=d.getHours(), evening=hr>=20&&hr<=23, morning=hr>=7&&hr<=10;
+  const buy = (wd===4?6:wd===1?-4:0) + (evening?5:morning?-3:0);
+  const sell = (wd===1?6:wd===4?-4:0) + (morning?5:evening?-3:0);
+  const label = buy>=5 ? 'Bon moment pour acheter' : sell>=5 ? 'Bon moment pour vendre' : evening ? 'Soirée : prix plus bas' : morning ? 'Matinée : prix plus hauts' : 'Moment neutre';
+  return {buy, sell, label, cls: buy>=5?'buy':sell>=5?'sell':''};
+}
+const BUY_HINT='idéal : vers 21h, après la sortie du contenu de 19h, surtout le jeudi';
+const SELL_HINT='idéal : mise en vente 1 h vers 8h, surtout le lundi';
+
+/* ---------- opportunity engine ---------- */
+function fodderStats(r){
+  const cur=S.market?.fodder?.[r]; if (cur==null) return null;
+  // Quick-sell floor only drives 84–86: 81–83 sit on EA's minimum price, 87+ normally trade far above their quick-sell value.
+  const qs=S.market?.fodderQS?.[r]||null, ratio=qs && +r>=84 && +r<=86 ? cur/qs : null;
+  const since=Date.now()-7*864e5;
+  const past=(S.mhist?.snaps||[]).filter(s=>s.at>=since && s.at<(S.market.at||0) && s.fodder?.[r]!=null).map(s=>s.fodder[r]);
+  const avg=past.length ? past.reduce((a,b)=>a+b,0)/past.length : null;
+  const diff=avg ? (cur-avg)/avg*100 : null;
+  let sig = ratio!=null ? (ratio<=1.15 ? 'buy' : ratio>=1.4 || (diff!=null && past.length>=3 && diff>=10) ? 'sell' : (diff!=null && past.length>=3 && diff<=-8) ? 'buy' : 'hold')
+                        : (past.length<3 ? 'wait' : diff<=-8 ? 'buy' : diff>=10 ? 'sell' : 'hold');
+  return {cur, qs, ratio, avg, diff, n:past.length, sig};
+}
+function leakPlan(l){
+  return (l.ratings||[]).map(r=>{
+    const cur=S.market?.fodder?.[r] ?? null, buy=l.buyPrices?.[r] ?? (cur!=null?stepDown(cur):null);
+    const sell=buy!=null ? stepUp((cur??buy)*(1+(l.rise||15)/100)) : null;
+    return {r, cur, buy, sell, net:buy!=null?afterTax(sell)-buy:null, qty:l.qty||1};
+  });
+}
+function isMeta(name, rating){ return (S.meta?.players||[]).slice(0,25).some(p=>sameName(p.name,name) && (!rating || p.rating===rating)); }
+// 85+ cards fall all season: expect a smaller rebound and sell fast.
+function dipTrade(l){ const high=l.rating>=85, pre=l.price/(1-l.pct/100), bid=stepDown(l.price*0.93), sell=stepDown(l.price+(pre-l.price)*(high?0.3:0.5)); return {bid, sell, net:afterTax(sell)-bid, high}; }
+
+function buildOpps(){
+  const O=[], b=bank(), cap=b?b*0.25:Infinity, now=Date.now(), open=S.trades.filter(t=>t.sell==null), used=new Set();
+  const push=o=>{ if (o.key && used.has(o.key)) return; if (o.key) used.add(o.key); O.push(o); };
+  // 1. leak plans
+  for (const l of S.leaks.filter(l=>l.status!=='sold')){
+    const plan=leakPlan(l).filter(p=>p.buy), dt=l.release-now;
+    const prices=[plan.map(p=>`${p.qty}× ${p.r} à ≤ ${fmt(p.buy)} → ${fmt(p.sell)}`).join(' · '), (l.cards||[]).length?`Cartes : ${l.cards.join(', ')}`:''].filter(Boolean).join(' · ');
+    const net=plan.reduce((a,p)=>a+p.net*p.qty,0);
+    if (dt>0 && l.status==='prep') push({act:'buy', score:100, src:'Leak', hz:'à la sortie', title:`Fourrage pour « ${l.title} »`, prices: prices||'Lance « Tout actualiser » pour avoir les prix du fourrage', why:`Sortie ${whenFmt(l.release)} : achète avant, la demande montera à la sortie.`, net: plan.length?net:null,
+      btn:['J’ai acheté',()=>{ const bp={}; for (const p of plan) bp[p.r]=p.buy; write(()=>S.db.doc('leaks/'+l.id).update({status:'bought',buyPrices:bp}),'Achat noté.'); }]});
+    else if (dt<=0 && l.status!=='sold') push({act:'sell', score:dt>-24*3600e3?99:96, src:'Leak', hz:'maintenant', title:`Vends ce que tu as acheté pour « ${l.title} »`, prices, why: dt>-24*3600e3 ? 'Le contenu est sorti : la demande est au plus haut.' : 'Sorti depuis plus de 24 h : le fourrage redescend, vends vite.', net: plan.length?net:null, btn:['Clôturer',()=>{ showTab('marche'); }]});
+  }
+  // 2. fresh leak posts without a plan
+  const feeds=Object.values(S.feeds).flatMap(f=>(f.posts||[]).map(p=>({...p, handle:f.handle})));
+  for (const p of feeds.filter(p=>!p.pinned && now-(p.at||p.seenAt)<6*3600e3 && /futsheriff/i.test(p.handle) && LEAK_RE.test(p.text)).slice(0,3)){
+    if (S.leaks.some(l=>l.text && norm(l.text).slice(0,60)===norm(p.text).slice(0,60))) continue;
+    push({act:'prep', score:98, src:'FUT Sheriff', hz:'avant la sortie', title:p.text.split('\n')[0].replace(/^[^\p{L}\d]+/u,'').slice(0,90), prices:guessRatings(p.text).length?`Notes repérées : ${guessRatings(p.text).join(', ')}`:'', why: EVO_RE.test(p.text) ? `Évolution annoncée : ${EVO_TIP}` : 'Nouveau leak : prépare un plan avant que le marché réagisse.', btn:['Créer un plan',()=>prefillLeak(p.text)]});
+  }
+  // 3. new expensive SBCs → fodder demand
+  for (const s of (S.sbc?.list||[]).filter(s=>(s.isNew || now-(S.sbc.seen?.[norm(s.title)]||0)<24*3600e3) && (s.cost||0)>=5000).slice(0,3)){
+    const rs=guessRatings(s.title+' '+s.reward).filter(r=>S.market?.fodder?.[r]!=null);
+    const fod=(rs.length?rs:[84,85,86].filter(r=>s.cost>=40000 && S.market?.fodder?.[r]!=null));
+    if (!fod.length) continue;
+    push({act:'sell', score:88, src:'DCE', hz:'maintenant', title:`Vends ton fourrage ${fod.join(', ')}`, prices:fod.map(r=>`${r} : ${fmt(S.market.fodder[r])}`).join(' · '), why:`Nouveau DCE « ${s.title} » (${fmt(s.cost)} crédits, expire dans ${s.expires}) : la demande monte.`});
+  }
+  // 4. your cards that are rising
+  for (const t of open){ const g=(S.market?.gainers||[]).find(g=>sameName(g.name,t.player)); if (g && afterTax(g.price)>t.buy) push({key:'p'+norm(t.player), act:'sell', score:92, src:'Hausse', hz:'maintenant', title:`${t.player}`, prices:`Acheté ${fmt(t.buy)} → vends à ${fmt(stepDown(g.price))}`, why:`+${g.pct.toFixed(0)} % aujourd’hui sur Futbin.`, net:afterTax(stepDown(g.price))-t.buy}); }
+  // 5. meta cards on a dip
+  for (const l of (S.market?.losers||[]).filter(l=>l.price>=1000 && l.price<=cap && l.pct>0 && l.pct<80 && isMeta(l.name,l.rating))){
+    const d=dipTrade(l); if (d.net>0) push({key:'p'+norm(l.name), act:'buy', score:d.high?78:85, src:'Méta', hz:d.high?'24 h':'24–48 h', bid:d.bid, sell:d.sell, pname:l.name, prating:l.rating, title:`${l.name} ${l.rating}`, prices:`Enchère ≤ ${fmt(d.bid)} → revente ${fmt(d.sell)}`, why:`Carte méta en baisse de ${l.pct.toFixed(0)} % aujourd’hui : elle remonte en général vite.${d.high?' Note 85+ : la tendance de fond est baissière, revends sous 24 h.':''}`, net:d.net, btn:['Suivre',()=>watchAdd(l.name,l.rating,d.bid,d.sell)]});
+  }
+  // 6. watchlist signals
+  for (const w of S.watch){ const lp=(w.prices||[]).at(-1); if (lp && lp.p<=w.maxBuy) push({key:'p'+norm(w.player), act:'buy', score:75, src:'Suivi', hz:'24–48 h', bid:lp.p, sell:w.target, pname:w.player, prating:Number(w.version)||null, title:`${w.player}${w.version?' '+w.version:''}`, prices:`Prix ${fmt(lp.p)} ≤ ton max ${fmt(w.maxBuy)} → revente ${fmt(w.target)}`, why:`Prix relevé ${ago(lp.at)}.`, net:afterTax(w.target)-lp.p}); }
+  // 7. fodder: buy only with a sale within ~3 days in sight (a leak plan or a DCE that needs that rating), sell on spikes
+  const ph=seasonPhase();
+  const soon=new Set([...S.leaks.filter(l=>l.status==='prep' && l.release>now && l.release-now<72*3600e3).flatMap(l=>l.ratings||[]),
+    ...(S.sbc?.list||[]).filter(s=>s.isNew).flatMap(s=>guessRatings(s.title+' '+s.reward))].map(String));
+  for (const r of Object.keys(S.market?.fodder||{})){ const f=fodderStats(r); if (!f) continue;
+    if (f.sig==='buy' && soon.has(r)){ const buy=stepDown(f.cur), sell=stepUp(Math.max(f.cur*1.2, (f.qs||0)*1.3));
+      push({act:'buy', score:72, src:'Fourrage', hz:'≤ 3 jours', bid:buy, sell, frating:r, title:`Fourrage ${r}`, prices:`≤ ${fmt(buy)} → revente ${fmt(sell)}`, why:`Un leak ou un DCE va faire monter le ${r}${f.ratio?`, et il n’est qu’à ${Math.round((f.ratio-1)*100)} % au-dessus de la vente rapide (${fmt(f.qs)}) : risque très faible`:''}.`, net:afterTax(sell)-buy}); }
+    if (f.sig==='sell') push({act:'sell', score:70, src:'Fourrage', hz:'maintenant', title:`Fourrage ${r}`, prices:`Prix ${fmt(f.cur)}${f.qs?` (vente rapide ${fmt(f.qs)})`:''}`, why:`Pic de demande (${f.ratio?Math.round((f.ratio-1)*100)+' % au-dessus de la vente rapide':'+'+f.diff.toFixed(0)+' % sur 7 jours'}) : vends ton stock.`}); }
+  // 8. other dips in budget (85+ only as very short flips)
+  (S.market?.losers||[]).filter(l=>l.price>=1000 && l.price<=cap && l.pct>=8 && l.pct<80).map(l=>({l,d:dipTrade(l)})).filter(x=>x.d.net>0).sort((a,b)=>b.d.net/b.d.bid-a.d.net/a.d.bid).slice(0,4)
+    .forEach(({l,d})=>push({key:'p'+norm(l.name), act:'buy', score:d.high?42:50, src:'Baisse', hz:d.high?'24 h':'48 h', bid:d.bid, sell:d.sell, pname:l.name, prating:l.rating, title:`${l.name} ${l.rating}`, prices:`Enchère ≤ ${fmt(d.bid)} → revente ${fmt(d.sell)}`, why:`-${l.pct.toFixed(0)} % aujourd’hui. Pari sur un rebond, risque plus élevé${d.high?' : note 85+ en baisse toute la saison, revends sous 24 h':''}.`, net:d.net, btn:['Suivre',()=>watchAdd(l.name,l.rating,d.bid,d.sell)]}));
+  // 9. TOTW rhythm: pack promo cards lose ~50 % in 9 days, then rebound once out of packs
+  const wd=new Date().getDay(), hr=new Date().getHours();
+  if (wd===2 || (wd===3 && hr<19)) push({act:'prep', score:60, src:'TOTW', hz:'mercredi 19h', title:'Achète l’ancienne TOTW avant mercredi 19h', prices:'', why:'Elle sort des packs à 19h : l’offre se tarit et le prix remonte (≈ +15 % observé sur FC 27). Ne paie jamais une nouvelle TOTW le jour de sa sortie : −50 % en 9 jours.'});
+  // 10. positions held over 48 h: coins stuck in a card are coins not trading
+  for (const t of open.filter(t=>now-t.boughtAt>2*864e5)) push({key:'p'+norm(t.player), act:'sell', score:ph.down?80:65, src:'Position', hz:'maintenant', title:t.player, prices:`Acheté ${fmt(t.buy)} · revente mini ${fmt(stepUp(t.buy/0.95))}`, why:`En vente depuis ${Math.round((now-t.boughtAt)/864e5)} jours : baisse ton prix pour récupérer tes crédits et les refaire tourner.${ph.down?' En ce moment, une carte invendue perd de la valeur chaque jour.':''}`});
+  // 11. Evolutions: eligible cheap base cards jump ×5–×10 on release, then fall back within a week
+  const evoPlayers=S.evos?.players||[];
+  for (const t of open){ const e=evoPlayers.slice(0,20).find(e=>sameName(e.name,t.player)); if (e) push({key:'p'+norm(t.player), act:'sell', score:95, src:'Évolution', hz:'maintenant', title:t.player, prices:`Acheté ${fmt(t.buy)} · revente mini ${fmt(stepUp(t.buy/0.95))}`, why:`Très demandé pour l’évolution « ${e.evo} » : vends pendant le pic, il retombe en 5 à 7 jours.`}); }
+  const newEvos=Object.entries(S.evos?.seen||{}).filter(([,t])=>t && now-t<36*3600e3).map(([k])=>k);
+  for (const evo of newEvos.slice(0,2)){ const who=evoPlayers.filter(e=>e.evo===evo).slice(0,4).map(e=>e.name);
+    push({act:'prep', score:90, src:'Évolution', hz:'1–3 jours', title:`Nouvelle évolution populaire : ${evo}`, prices:who.length?`Les plus choisis : ${who.join(', ')}`:'', why:`Leurs cartes de base sont au plus haut maintenant. Vends celles que tu as. N’achète pas après la sortie : elles retombent en 5 à 7 jours.`}); }
+  // 12. Marquee Matchups (DCE grosses affiches) land on Thursday: cheap cards of the featured clubs rise
+  if (wd===3 || (wd===4 && hr<12)) push({act:'prep', score:58, src:'DCE', hz:'jeudi', title:'Grosses affiches : prépare les « Marquee Matchups »', prices:'', why:'Le DCE des grosses affiches sort le jeudi. Achète avant des cartes bon marché (moins de 1 000) des clubs des grands matchs du week-end, souvent leakés par FUT Sheriff, et revends le jeudi.'});
+  // 13. mass bidding plan (fresh, from real sales)
+  if (S.mbplan?.cards?.length && now-S.mbplan.at<12*3600e3) for (const c of S.mbplan.cards)
+    push({key:'p'+norm(c.name), act:'buy', score:76, src:'Mass bid', hz:'24–72 h', bid:c.bid, sell:c.list, pname:c.name, prating:c.rating,
+      title:`${c.name} ${c.rating||''} × ${c.copies}`, prices:`Enchères ≤ ${fmt(c.bid)} → revente ${fmt(c.list)}`, why:`${c.perHour} ventes par heure, prix payé médian ${fmt(c.median)}. ${c.reach} % des dernières ventes se sont faites à ton enchère ou moins.`, net:c.net});
+  // measured results: a source that loses money on 5+ tracked ideas sinks in the ranking
+  const R=trackStats();
+  for (const o of O){ const r=R[o.src]; if (r && r.n>=5){ const avg=r.net/r.n; if (avg<0){ o.score-=20; o.why+=` Attention : ce type de conseil a perdu ${fmt(-avg)} en moyenne sur ${r.n} suivis.`; } else o.why+=` Mesuré : ${signed(avg)} en moyenne sur ${r.n} suivis.`; } }
+  // timing: week and day rhythm move the ranking, and each card says when to act
+  const T=timing();
+  for (const o of O){ o.score += o.hz==='maintenant'?4 : o.hz==='24 h'?2 : 0;   // faster turnover ranks higher
+    if (o.src==='Leak' || o.src==='FUT Sheriff') continue; if (o.act==='buy'){ o.score+=T.buy; if (T.buy<5) o.why+=` (${BUY_HINT}).`; } else if (o.act==='sell'){ o.score+=T.sell; if (T.sell<5 && o.hz!=='maintenant') o.why+=` (${SELL_HINT}).`; } }
+  return O.sort((a,b)=>b.score-a.score);
+}
+function watchAdd(name, rating, maxBuy, target){ if (S.watch.some(w=>sameName(w.player,name) && String(w.version)===String(rating))) return toast('Déjà suivie.'); write(()=>S.db.collection('watch').add({player:name,version:String(rating),maxBuy,target,prices:[],createdAt:Date.now()}),`${name} ajouté à tes cartes suivies.`); }
+
+function renderOpps(){
+  const all=buildOpps(), list=all.filter(o=>S.oFilter==='all' || (S.oFilter==='buy'?o.act!=='sell':o.act==='sell'));
+  const LAB={buy:'ACHÈTE',sell:'VENDS',prep:'PRÉPARE'};
+  $('#opps').replaceChildren(...(list.length ? list.map(o=>h('article',{class:'opp'},
+    h('div',{class:'act '+o.act,text:LAB[o.act]}),
+    h('div',{class:'opp-main'}, h('span',{class:'opp-title',text:o.title}), o.prices?h('span',{class:'opp-prices',text:o.prices}):null, h('span',{class:'opp-why',text:o.why})),
+    h('div',{class:'opp-side'}, o.net!=null?h('span',{class:'opp-net '+(o.net>=0?'pos':'neg'),text:signed(o.net)}):h('span',{class:'src',text:o.src}),
+      o.hz?h('span',{class:'chip '+(o.hz==='maintenant'?'sell':''),text: o.act==='buy' ? 'Revente : '+o.hz : o.hz==='maintenant' ? 'Maintenant' : o.hz}):null,
+      h('div',{class:'row',style:'justify-content:flex-end'}, o.net!=null?h('span',{class:'src',text:o.src}):null, o.btn?h('button',{class:'btn small'+(o.act==='buy'?'':' ghost'),type:'button',text:o.btn[0],onclick:o.btn[1]}):null))))
+    : [empty(S.market ? 'Rien à faire pour l’instant' : 'Pas encore de données', S.market ? 'Le marché est calme. Reviens après la prochaine actualisation.' : 'Clique sur « Tout actualiser » en haut : l’appli lit Futbin et X, puis classe les opportunités ici.')]));
+  // mood strip
+  const mk=S.market, m=mk?.momentum;
+  const moodTxt = m==null ? 'Humeur du marché inconnue' : m<40 ? 'Marché en baisse : moment d’acheter' : m>60 ? 'Marché en hausse : moment de vendre' : 'Marché stable';
+  const ph=seasonPhase(), T=timing();
+  $('#mood').replaceChildren(
+    h('span',{class:'chip gold',title:ph.text,text:'Saison : '+ph.label}),
+    h('span',{class:'chip '+T.cls,text:T.label}),
+    h('span',{class:'gauge'}, h('b',{text:moodTxt}), m!=null?h('span',{class:'gbar'},h('i',{style:`width:${Math.max(0,Math.min(100,m))}%`})):null, m!=null?h('span',{class:'num muted',text:Math.round(m)+'/100'}):null),
+    mk?.indices?.['100']!=null ? h('span',{class:'muted'},'Index 100 ',h('b',{class:'num',text:mk.indices['100']})) : null,
+    h('span',{class:'muted',text: mk?.at ? 'Données '+ago(mk.at) : ''}));
+  $('#phase-text').textContent=`${ph.label} : ${ph.text}`;
+}
+$('#o-filters').addEventListener('click',e=>{ const f=e.target.closest('button')?.dataset.f; if (!f) return; S.oFilter=f; pressFilters('#o-filters',f); renderOpps(); });
+
+/* ---------- render: header, plan, trades ---------- */
+function renderHeader(){
+  const c=bank(), pct=c!=null?Math.min(100,c/GOAL*100):0;
+  $('#h-coins').textContent=fmt(c);
+  $('#h-sub').textContent = c!=null ? `/ 1 000 000 · ${pct.toLocaleString('fr-FR',{maximumFractionDigits:1})} %` : '/ 1 000 000 crédits';
+  $('#h-fill').style.width=pct+'%';
+}
+function renderPlan(){
+  const c=bank(), left=c!=null?Math.max(0,GOAL-c):null, now=Date.now();
+  const sold7=S.trades.filter(t=>t.sell!=null && (t.soldAt||0)>=now-7*864e5);
+  let pace=null; if (sold7.length) pace=sold7.reduce((a,t)=>a+profitOf(t),0)/7;
+  else { const hs=(S.settings?.history||[]).filter(x=>x.at>=now-7*864e5); if (hs.length>=2) pace=(hs.at(-1).c-hs[0].c)/Math.max(1,(hs.at(-1).at-hs[0].at)/864e5); }
+  const eta=pace>0&&left!=null?new Date(now+left/pace*864e5):null;
+  const cell=(l,v,cls)=>h('div',null,h('span',{class:'label',text:l}),h('span',{class:'num '+(cls||''),text:v}));
+  $('#plan-kv').replaceChildren(cell('Reste',left!=null?fmt(left):'—'), cell('Objectif / jour (60 j)',left!=null?fmt(left/60):'—'), cell('Ton rythme / jour',pace!=null?signed(pace):'—',pace>0?'pos':pace<0?'neg':''), cell('Million vers',eta?eta.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'—'));
+  $('#plan-hint').textContent = c!=null ? `Mise max conseillée par carte : ${fmt(c*0.25)} (25 % de ta banque).` : '';
+}
+function renderTradeStats(){
+  const now=Date.now(), sold=S.trades.filter(t=>t.sell!=null), open=S.trades.filter(t=>t.sell==null);
+  const sum=a=>a.reduce((x,t)=>x+profitOf(t),0), wk=sum(sold.filter(t=>(t.soldAt||0)>=now-7*864e5)), tot=sum(sold);
+  const wins=sold.filter(t=>profitOf(t)>0).length;
+  const cell=(l,v,cls)=>h('div',null,h('span',{class:'label',text:l}),h('span',{class:'num '+(cls||''),text:v}));
+  $('#t-stats').replaceChildren(cell('Profit total',signed(tot),tot>0?'pos':tot<0?'neg':''), cell('7 jours',signed(wk),wk>0?'pos':wk<0?'neg':''), cell('Réussite',sold.length?Math.round(wins/sold.length*100)+' %':'—'), cell('En vente',`${open.length} · ${fmt(open.reduce((a,t)=>a+t.buy,0))}`));
+}
+function renderTrades(){
+  const f=S.tFilter, list=S.trades.filter(t=>f==='all'||(f==='open'?t.sell==null:t.sell!=null));
+  if (!list.length){ $('#t-list').replaceChildren(empty(f==='open'?'Aucune carte en vente':'Rien ici', 'Ajoute un achat ci-dessus dès que tu l’as fait sur la web app.')); return; }
+  const tb=h('tbody');
+  for (const t of list){
+    const p=profitOf(t);
+    let sellCell;
+    if (t.sell!=null) sellCell=h('td',{class:'r num',text:fmt(t.sell)});
+    else { const inp=h('input',{inputmode:'numeric',placeholder:'vendu à','aria-label':'Prix de vente de '+t.player,id:'sell-'+t.id});
+      sellCell=h('td',{class:'r'},h('div',{class:'sell-inline'},inp,h('button',{class:'btn small',type:'button',text:'Vendu',onclick:()=>{ const v=parseCoins(inp.value); if (!v) return toast('Indique un prix de vente valide.'); write(()=>S.db.doc('trades/'+t.id).update({sell:v,soldAt:Date.now()}),`Vente : ${signed(afterTax(v)-t.buy)} net.`); }}))); }
+    tb.append(h('tr',null, h('td',{class:'num muted',text:dayFmt(t.soldAt||t.boughtAt)}), h('td',null,h('b',{text:t.player})),
+      h('td',{class:'r num',text:fmt(t.buy)}), sellCell,
+      h('td',{class:'r'}, p==null?h('span',{class:'chip gold',text:`mini ${fmt(stepUp(t.buy/0.95))}`}):h('span',{class:'num '+(p>=0?'pos':'neg'),text:signed(p)})),
+      h('td',{class:'r'},confirmBtn('×',()=>write(()=>S.db.doc('trades/'+t.id).delete(),'Trade supprimé.')))));
+  }
+  $('#t-list').replaceChildren(h('div',{class:'tablebox'},h('table',null,h('thead',null,h('tr',null,['Date','Joueur','Achat','Vente','Net',''].map((x,i)=>h('th',{class:i>=2?'r':null,text:x})))),tb)));
+}
+function renderWatch(){
+  $('#w-count').textContent=S.watch.length?`(${S.watch.length})`:'';
+  if (!S.watch.length){ $('#w-list').replaceChildren(h('p',{class:'hint',text:'Les cartes suivies sont relues sur Futbin à chaque actualisation (10 max). Le bouton « Suivre » des opportunités les ajoute ici.'})); return; }
+  $('#w-list').replaceChildren(h('div',{class:'list'},S.watch.map(w=>{ const lp=(w.prices||[]).at(-1);
+    return h('div',{class:'item'}, h('span',{class:'chip '+(lp&&lp.p<=w.maxBuy?'buy':''),text:lp?fmt(lp.p):'—'}),
+      h('div',null,h('b',{text:w.player+(w.version?' '+w.version:'')}),h('p',{class:'hint',text:`Achat ≤ ${fmt(w.maxBuy)} → revente ${fmt(w.target)}${lp?' · relevé '+ago(lp.at):''}`})),
+      h('div',{class:'row'},h('a',{class:'btn ghost small',href:futbinSearch(w.player),target:'_blank',rel:'noopener',text:'Futbin'}),confirmBtn('×',()=>write(()=>S.db.doc('watch/'+w.id).delete(),'Carte retirée.')))); })));
+}
+function renderStrategies(){
+  const sel=$('#t-strategy'), keep=sel.value;
+  sel.replaceChildren(h('option',{value:'',text:'—'}), ...['Leak','DCE','Méta','Baisse','Fourrage'].map(x=>h('option',{value:'src:'+x,text:x})), ...S.strategies.map(s=>h('option',{value:s.id,text:s.name})));
+  sel.value=keep;
+}
+
+/* ---------- render: market tab ---------- */
+function renderFeed(){
+  const feeds=Object.values(S.feeds).flatMap(f=>(f.posts||[]).map(p=>({...p, handle:f.handle})));
+  const at=Math.max(0,...Object.values(S.feeds).map(f=>f.at||0));
+  $('#x-meta').textContent = at ? 'Lu '+ago(at) : '';
+  if (!feeds.length){ $('#x-feed').replaceChildren(empty('Aucun post','« Tout actualiser » lit FUT Sheriff et les comptes ajoutés dans Réglages.')); return; }
+  feeds.sort((a,b)=>(b.pinned?0:(b.at||b.seenAt))-(a.pinned?0:(a.at||a.seenAt)));
+  $('#x-feed').replaceChildren(...feeds.slice(0,12).map(p=>{ const leak=/futsheriff/i.test(p.handle) && LEAK_RE.test(p.text);
+    return h('div',{class:'item',style:'grid-template-columns:auto minmax(0,1fr)'},
+      h('div',{style:'display:grid;gap:4px;justify-items:start'},h('span',{class:'date',text:p.at?ago(p.at).replace('il y a ',''):p.time}),leak?h('span',{class:'chip prep',text:'Leak'}):null),
+      h('div',{style:'display:grid;gap:6px;min-width:0'},h('span',{class:'src',text:'@'+p.handle}),h('p',{class:'post',text:p.text}),leak?h('div',null,h('button',{class:'btn ghost small',type:'button',text:'Créer un plan',onclick:()=>prefillLeak(p.text)})):null)); }));
+}
+function nextRelease(){ const d=new Date(); d.setMinutes(0,0,0); if (d.getHours()>=19) d.setDate(d.getDate()+1); d.setHours(19); return d.getTime(); }
+const toLocalInput=ms=>new Date(ms-new Date(ms).getTimezoneOffset()*60000).toISOString().slice(0,16);
+function prefillLeak(text){
+  showTab('marche');
+  $('#leak-box').open=true;
+  $('#l-title').value=text.split('\n').find(s=>s.trim())?.replace(/^[^\p{L}\d]+/u,'').slice(0,90)||'';
+  $('#l-release').value=toLocalInput(nextRelease());
+  $('#l-ratings').value=guessRatings(text).join(', ');
+  $('#l-text').value=text;
+  if (EVO_RE.test(text)) $('#l-ratings').value='';   // an evolution targets specific base cards, not fodder ratings
+  $('#leak-box').scrollIntoView({behavior:'smooth',block:'center'}); $('#l-title').focus();
+}
+$('#l-release').value=toLocalInput(nextRelease());
+$('#f-leak').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const release=new Date($('#l-release').value).getTime(); if (!release) return toast('Indique la date de sortie.');
+  const ratings=[...new Set(($('#l-ratings').value.match(/\d{2}/g)||[]).map(Number).filter(r=>r>=75&&r<=99))];
+  const doc={title:$('#l-title').value.trim(),type:'dce',release,ratings,qty:Math.max(1,parseInt($('#l-qty').value)||1),rise:Number($('#l-rise').value),cards:$('#l-cards').value.split(',').map(s=>s.trim()).filter(Boolean).slice(0,10),text:$('#l-text').value.slice(0,1500),status:'prep',createdAt:Date.now()};
+  if (await write(()=>S.db.collection('leaks').add(doc),'Plan créé : il apparaît dans tes opportunités.')){ ['#l-title','#l-ratings','#l-cards','#l-text'].forEach(s=>$(s).value=''); $('#leak-box').open=false; }
+});
+function renderLeaks(){
+  const closed=S.leaks.filter(l=>l.status==='sold'), tot=closed.reduce((a,l)=>a+(l.profit||0),0);
+  $('#l-stats').textContent = closed.length ? `${closed.length} clôturé${closed.length>1?'s':''} · ${signed(tot)}` : '';
+  const act=S.leaks.filter(l=>l.status!=='sold');
+  if (!act.length){ $('#l-list').replaceChildren(h('p',{class:'hint',text:'Aucun plan en cours. « Créer un plan » sur un leak le prépare en un clic.'})); return; }
+  $('#l-list').replaceChildren(...act.map(l=>{ const plan=leakPlan(l), net=plan.reduce((a,p)=>a+(p.net||0)*p.qty,0), past=l.release<=Date.now();
+    let ctl; if (l.status==='bought'){ const inp=h('input',{inputmode:'numeric',placeholder:'profit réel',id:'lp-'+l.id,style:'width:120px'});
+      ctl=h('div',{class:'row'},inp,h('button',{class:'btn small',type:'button',text:'Clôturer',onclick:()=>{ const raw=inp.value.trim(), v=parseCoins(raw.replace(/^[-+]/,'')); if (v==null||isNaN(v)) return toast('Indique le profit réel, ex. 12000 ou -3000.'); write(()=>S.db.doc('leaks/'+l.id).update({status:'sold',profit:raw.startsWith('-')?-v:v,closedAt:Date.now()}),'Leak clôturé.'); }})); }
+    return h('div',{class:'item'}, h('span',{class:'chip '+(past?'sell':l.status==='bought'?'gold':'buy'),text:past?'Vendre':l.status==='bought'?'Acheté':'Acheter'}),
+      h('div',null,h('b',{text:l.title}),h('p',{class:'hint',text:`Sortie ${whenFmt(l.release)} · ${plan.map(p=>`${p.qty}× ${p.r}`).join(', ')||'aucune note'}${plan.some(p=>p.net!=null)?` · ${signed(net)} estimé`:''}`}),ctl||null),
+      confirmBtn('×',()=>write(()=>S.db.doc('leaks/'+l.id).delete(),'Plan supprimé.'))); }));
+}
+function renderSbc(){
+  const list=S.sbc?.list||[];
+  $('#sbc-meta').textContent=S.sbc?.at?'Lu '+ago(S.sbc.at):'';
+  if (!list.length){ $('#sbc').replaceChildren(empty('Pas encore lus','« Tout actualiser » lit la liste des DCE sur Futbin.')); return; }
+  const now=Date.now();
+  $('#sbc').replaceChildren(h('div',{class:'tablebox'},h('table',null,h('thead',null,h('tr',null,['DCE','Récompense','Expire','Coût','Fourrage visé'].map((x,i)=>h('th',{class:i===3?'r':null,text:x})))),
+    h('tbody',null,list.slice(0,15).map(s=>{ const fresh=s.isNew||now-(S.sbc.seen?.[norm(s.title)]||0)<24*3600e3, rs=guessRatings(s.title+' '+s.reward);
+      return h('tr',null,h('td',null,h('b',{text:s.title}),' ',fresh?h('span',{class:'chip buy',text:'Nouveau'}):s.expiring?h('span',{class:'chip sell',text:'Expire bientôt'}):null),
+        h('td',{class:'muted',text:s.reward}),h('td',{text:s.expires}),h('td',{class:'r num',text:fmt(s.cost)}),h('td',{class:'num',text:rs.length?rs.join(', '):(s.cost>=40000?'84 à 86 (probable)':'—')})); })))));
+}
+function renderMeta(){
+  const ps=(S.meta?.players||[]).slice(0,15);
+  if (!ps.length){ $('#meta').replaceChildren(empty('Pas encore lue','« Tout actualiser » lit les cartes populaires sur Futbin.')); return; }
+  $('#meta').replaceChildren(h('div',{style:'overflow-x:auto'},h('table',null,h('thead',null,h('tr',null,['Carte','Prix','Évolution',''].map((x,i)=>h('th',{class:i?'r':null,text:x})))),
+    h('tbody',null,ps.map(p=>{ const prev=S.meta.prev?.[norm(p.name)+p.rating], ch=prev&&p.price?(p.price-prev)/prev*100:null;
+      const g=(S.market?.gainers||[]).find(x=>sameName(x.name,p.name)&&x.rating===p.rating), l=(S.market?.losers||[]).find(x=>sameName(x.name,p.name)&&x.rating===p.rating);
+      const day=g?`+${g.pct.toFixed(0)} % jour`:l?`-${l.pct.toFixed(0)} % jour`:ch!=null?`${ch>0?'+':''}${ch.toFixed(1)} %`:'—';
+      return h('tr',null,h('td',null,h('b',{text:p.name}),h('span',{class:'muted',text:` ${p.rating} ${p.pos}`})),h('td',{class:'r num',text:p.price?fmt(p.price):'DCE'}),
+        h('td',{class:'r num '+(g||ch>0?'pos':l||ch<0?'neg':''),text:day}),h('td',{class:'r'},p.price?h('a',{class:'btn ghost small',href:futbinSearch(p.name),target:'_blank',rel:'noopener',text:'Futbin'}):null)); })))));
+}
+function renderFodder(){
+  const rs=Object.keys(S.market?.fodder||{}).sort((a,b)=>a-b);
+  if (!rs.length){ $('#fodder').replaceChildren(empty('Pas encore lu','« Tout actualiser » lit le fourrage sur Futbin.')); return; }
+  $('#fodder').replaceChildren(h('div',{style:'overflow-x:auto'},h('table',null,h('thead',null,h('tr',null,['Note','Prix','Vente rapide','Au-dessus','Moy. 7 j',''].map((x,i)=>h('th',{class:i?'r':null,text:x})))),
+    h('tbody',null,rs.map(r=>{ const f=fodderStats(r), [lab,cls]={buy:['Acheter','buy'],sell:['Vendre','sell'],hold:['Attendre',''],wait:[`${f.n}/3 relevés`,'']}[f.sig];
+      return h('tr',null,h('td',{class:'num',text:r}),h('td',{class:'r num',text:fmt(f.cur)}),h('td',{class:'r num muted',text:fmt(f.qs)}),
+        h('td',{class:'r num '+(f.ratio!=null&&f.ratio<=1.15?'pos':f.ratio>=1.4?'neg':''),text:f.ratio!=null?'+'+Math.round((f.ratio-1)*100)+' %':'—'}),
+        h('td',{class:'r num',text:f.avg?fmt(f.avg):'—'}),h('td',{class:'r'},h('span',{class:'chip '+cls,text:lab}))); })))),
+    h('p',{class:'hint',text:'Notes 84 à 86 : le prix descend rarement sous la valeur de vente rapide, donc acheter à moins de +15 % au-dessus limite la perte, et un DCE le fait monter de +30 à +50 %. Notes 81 à 83 : elles sont au prix minimum d’EA et suivent surtout la saison (bas en hiver, haut au printemps et en été).'}));
+}
+
+function renderEvos(){
+  const ps=(S.evos?.players||[]).slice(0,12);
+  $('#evo-meta').textContent=S.evos?.at?'Lu '+ago(S.evos.at):'';
+  if (!ps.length){ $('#evos').replaceChildren(empty('Pas encore lues','« Tout actualiser » lit les évolutions populaires sur Futbin.')); return; }
+  const fresh=new Set(Object.entries(S.evos.seen||{}).filter(([,t])=>t && Date.now()-t<36*3600e3).map(([k])=>k));
+  $('#evos').replaceChildren(h('div',{style:'overflow-x:auto'},h('table',null,h('thead',null,h('tr',null,['Joueur','Évolution','Vues',''].map((x,i)=>h('th',{class:i>=2?'r':null,text:x})))),
+    h('tbody',null,ps.map(e=>h('tr',null,h('td',null,h('b',{text:e.name}),h('span',{class:'muted',text:` ${e.rating} ${e.pos}`})),
+      h('td',null,e.evo,' ',fresh.has(e.evo)?h('span',{class:'chip buy',text:'Nouvelle'}):null),h('td',{class:'r num',text:e.views}),
+      h('td',{class:'r'},h('a',{class:'btn ghost small',href:futbinSearch(e.name),target:'_blank',rel:'noopener',text:'Carte de base'}))))))));
+}
+
+/* Trading techniques catalogue (guides FIFA 23 → FC 27); [name, how, min bank, max bank, margin, horizon (h), risk, what the app does] */
+const TECHS=[
+  ['Évolutions (leak)','Acheter au plancher les cartes de base éligibles à une évolution leakée, revendre le jour de sa sortie.',2000,Infinity,'×2 à ×10',48,'Moyen : mauvais choix de carte','Fil FUT Sheriff, Évolutions populaires, alerte « vends au pic »'],
+  ['Fourrage avant un DCE','Acheter le fourrage d’une note demandée par un DCE leaké, revendre à sa sortie.',10000,Infinity,'+15 à +50 %',72,'Faible pour les notes 84–86 (plancher = vente rapide)','Plans leak, signaux fourrage, DCE du moment'],
+  ['Grosses affiches (Marquee Matchups)','Le mercredi, acheter des cartes bon marché des clubs des grands matchs, revendre à la sortie du DCE le jeudi.',5000,Infinity,'×2 à ×10 sur des cartes < 1 000',24,'Faible à moyen','Rappel du mercredi'],
+  ['Mass bidding / tech enchères','Enchérir sous le prix sur beaucoup d’enchères d’une carte très échangée, revendre en achat immédiat.',20000,Infinity,'+3 à +8 % par carte',72,'Faible','Plan calculé sur les ventes réelles'],
+  ['Achat à la baisse (jeudi soir)','Acheter quand le marché baisse (jeudi, vers 21h après le contenu), revendre au plus tard le lundi matin.',5000,Infinity,'+3 à +6 %',72,'Moyen','Timing intégré au classement'],
+  ['TOTW et promos','Ne jamais acheter une carte promo à sa sortie (−50 % en 9 jours). Acheter l’ancienne TOTW juste avant qu’elle sorte des packs.',10000,Infinity,'≈ +15 %',24,'Moyen','Rappel du mardi et du mercredi'],
+  ['Tech or rare / or non-rare','Acheter au prix minimum EA des cartes or de grands championnats, remettre en vente 200 à 450 plus cher, toutes les heures.',1000,Infinity,'+150 à +400 par carte',6,'Très faible, mais petits gains','Pas encore automatisé'],
+  ['Tech noob (bronze / argent)','Cartes bronze et argent de grands championnats achetées 200–300, revendues 200–250 plus cher.',500,50000,'+150 à +200 par carte',6,'Très faible, très petits gains','Non'],
+  ['Tech millionnaire','Beaucoup de cartes or rares avec contrats et style, remises en vente 800 à 1 200 plus cher.',150000,450000,'+800 à +1 200 par carte',24,'Faible à moyen','Non'],
+  ['Tech avion','Carte chère passée à 99 contrats avec un style, revendue environ 15 % plus cher.',450000,Infinity,'≈ +10 % net',120,'Capital bloqué, krach','Non : hors budget et trop lent'],
+  ['Tech 59 / sniping','Rechercher en boucle une carte sous son prix pour l’acheter à la seconde où elle est mise en vente.',0,Infinity,'+5 à +10 %',1,'Élevé : bans temporaires pour recherches trop rapides, concurrence des bots','Non, volontairement'],
+  ['Icônes','Acheter des icônes au plus bas (fin de week-end), revendre plus haut.',500000,Infinity,'Variable',72,'Élevé : la taxe pèse lourd sur les gros prix','Non : hors budget'],
+  ['Packs bronze et argent','Ouvrir des packs bon marché et revendre leur contenu.',1000,Infinity,'≈ 0, avec des gros coups rares',24,'Moyen : ventes lentes','Non'],
+];
+function renderTechs(){
+  const b=bank()||0;
+  $('#techs').replaceChildren(h('div',{class:'tablebox'},h('table',null,h('thead',null,h('tr',null,['Technique','Comment','Marge','Risque','Pour toi','Dans l’appli'].map(x=>h('th',{text:x})))),
+    h('tbody',null,TECHS.map(([name,how,min,max,margin,hz,risk,app])=>{
+      const fit = /bans/.test(risk) ? ['Risque de ban','sell'] : b && b<min ? [`Banque trop faible (${fmt(min)} min.)`,''] : b && b>max ? ['Trop petit pour ta banque',''] : hz>72 ? ['Plus long que 3 jours','gold'] : ['Oui','buy'];
+      return h('tr',null,h('td',null,h('b',{text:name})),h('td',{class:'muted',text:how}),h('td',{text:margin}),h('td',{class:'muted',text:risk}),h('td',null,h('span',{class:'chip '+fit[1],text:fit[0]})),h('td',{class:'muted',text:app})); })))));
+}
+
+/* ---------- settings: EA live, X handles, coins ---------- */
+const LIVE={timer:null, last:null, at:null, msg:'', alerted:'', sync:''};
+async function syncCoins(coins, at){
+  if (!S.db || !S.canWrite){ LIVE.sync='solde non enregistré (lecture seule)'; return; }
+  const history=[...(S.settings?.history||[]),{c:coins,at}].slice(-300), body={coins,goal:GOAL,updatedAt:at,source:'web app',history}, ref=S.db.doc('config/main');
+  try { await Promise.race([S.settings?ref.update(body):ref.set(body), sleep(15000).then(()=>{ throw {code:'timeout'}; })]); LIVE.sync=`solde enregistré à ${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`; }
+  catch(e){ LIVE.sync = e?.code==='timeout' ? 'la base ne répond pas, nouvel essai dans 30 s' : 'solde non enregistré : '+errMsg(e); }
+}
+function renderLive(){
+  const l=LIVE.last, c=l?.counts||{}, cell=(lab,v,cls)=>h('div',null,h('span',{class:'label',text:lab}),h('span',{class:'num '+(cls||''),text:v==null?'—':fmt(v)}));
+  $('#ea-stats').replaceChildren(cell('Solde',l?.coins), cell('En vente',c.selling), cell('Vendus',c.sold,c.sold?'pos':''), cell('Gagnés',c.won,c.won?'pos':''));
+  $('#ea-live-meta').textContent = LIVE.msg || (LIVE.at ? `Lu ${ago(LIVE.at)} · ${l.screen}${LIVE.sync?' · '+LIVE.sync:''}` : '');
+  if (l) setChip('#ea-chip', LIVE.timer?'En direct':'Lue '+ago(LIVE.at), 'buy');
+}
+async function liveTick(){
+  if (!C.mcp || C.liveBusy) return; C.liveBusy=true;
+  try {
+    let page=null;
+    if (C.eaTab){ try { page=await readTab(C.eaTab,12000); } catch(e){ if (e?.code!=='tool_error') throw e; C.eaTab=null; lsSet('eaTab',null); } }
+    if (!page || !/ea\.com\/.*web-app/i.test(page.url)){ page=await readTab(null,12000); if (/ea\.com\/.*web-app/i.test(page.url) && page.tab){ C.eaTab=page.tab; lsSet('eaTab',page.tab); } }
+    if (!/ea\.com\/.*web-app/i.test(page.url)){ LIVE.msg='Onglet de la web app introuvable : clique sur « Ouvrir la web app ».'; return; }
+    const p=parseEA(page.text);
+    if (p.coins==null){ LIVE.msg = p.login ? "Tu n'es pas connecté à la web app." : "La web app n'affiche rien : garde la fenêtre du navigateur intégré ouverte (pas réduite)."; return; }
+    LIVE.msg=''; LIVE.at=Date.now(); LIVE.last={...p, counts:{...(LIVE.last?.counts||{}), ...p.counts}};
+    if (p.coins!==bank()) await syncCoins(p.coins, LIVE.at);
+    const c=LIVE.last.counts, key=`${c.sold||0}/${c.won||0}`;
+    if ((c.sold||c.won) && key!==LIVE.alerted){ LIVE.alerted=key; toast([c.sold?`${c.sold} vente${c.sold>1?'s':''} à encaisser`:'', c.won?`${c.won} enchère${c.won>1?'s':''} gagnée${c.won>1?'s':''}`:''].filter(Boolean).join(' · ')); document.title='(!) Trading FUT'; }
+  } catch(e){ LIVE.msg=browserErr(e); if (['server_not_connected','not_in_manifest','not_granted'].includes(e?.code)) setLive(false); }
+  finally { C.liveBusy=false; renderLive(); }
+}
+function setLive(on){ clearInterval(LIVE.timer); LIVE.timer=null; lsSet('eaLive',on?'1':null); $('#ea-live').checked=on; if (on && C.mcp){ LIVE.timer=setInterval(liveTick,30000); liveTick(); } renderLive(); }
+$('#ea-live').addEventListener('change',e=>setLive(e.target.checked));
+$('#ea-open').addEventListener('click',async ()=>{ if (!C.mcp) return note('#ea-note',unavailableMsg(),'err'); try { const id=await openTab(EA_URL); if (id){ C.eaTab=id; lsSet('eaTab',id); } note('#ea-note',"Web app ouverte dans le navigateur intégré. Connecte-toi toi-même.",'ok'); } catch(e){ note('#ea-note',browserErr(e),'err'); } });
+$('#ea-read').addEventListener('click',async ()=>{
+  if (!C.mcp || !C.sample) return note('#ea-note',unavailableMsg(),'err');
+  note('#ea-note','Lecture de l’écran…');
+  try {
+    const page=await readTab(C.eaTab,24000);
+    if (!/ea\.com\/.*web-app/i.test(page.url)) return note('#ea-note',"L'onglet lu n'est pas la web app EA.",'err');
+    const data=await C.sample.json(`Tu lis le texte d'un écran de la web app EA SPORTS FC Ultimate Team. Réponds uniquement avec un objet JSON {"items":[{"player":"nom","rating":nombre|null,"status":"sold"|"active"|"expired"|"available"|"won"|"outbid"|"other","price":nombre|null}]}. Objet vendu : price = prix de vente ; remporté : enchère gagnante ; en vente : enchère actuelle ou prix de départ. Convertis 1,2K en 1200. N'invente rien.\nTexte :\n"""\n${page.text.slice(0,20000)}\n"""`,{modelTier:'quick',cache:false});
+    const items=(Array.isArray(data?.items)?data.items:[]).filter(i=>i?.player).slice(0,100).map(i=>({player:String(i.player).slice(0,60),rating:Number(i.rating)||null,status:String(i.status||'other'),price:Number(i.price)>0?Math.round(i.price):null}));
+    await write(()=>S.db.doc('imports/latest').set({at:Date.now(),items}));
+    note('#ea-note',`${items.length} objet${items.length>1?'s':''} lus.`,'ok');
+  } catch(e){ note('#ea-note',['not_granted','rate_limited','invalid_json','empty_completion'].includes(e?.code)?sampleErr(e):browserErr(e),'err'); }
+});
+function renderImport(){
+  const items=S.imp?.items||[], open=S.trades.filter(t=>t.sell==null), used=new Set();
+  if (!items.length){ $('#imp-body').replaceChildren(); return; }
+  $('#imp-body').replaceChildren(h('div',{class:'list'},items.filter(i=>i.status==='sold'||i.status==='won').map(it=>{
+    let action;
+    if (it.status==='sold'){ const m=open.find(t=>!used.has(t.id)&&sameName(t.player,it.player)); if (m){ used.add(m.id); action=h('button',{class:'btn small',type:'button',text:`Vendu (${signed(afterTax(it.price)-m.buy)})`,onclick:()=>write(()=>S.db.doc('trades/'+m.id).update({sell:it.price,soldAt:Date.now()}),'Vente enregistrée.')}); } }
+    else if (!S.trades.some(t=>sameName(t.player,it.player)&&t.buy===it.price)) action=h('button',{class:'btn small',type:'button',text:'Ajouter',onclick:()=>write(()=>S.db.collection('trades').add({player:it.player,buy:it.price,sell:null,strategy:'',boughtAt:Date.now(),soldAt:null,source:'web app'}),'Achat ajouté.')});
+    return h('div',{class:'item'},h('span',{class:'chip '+(it.status==='sold'?'buy':'gold'),text:it.status==='sold'?'Vendu':'Gagné'}),h('span',null,h('b',{text:it.player}),' ',h('span',{class:'num',text:fmt(it.price)})),action||h('span')); })));
+}
+function renderHandles(){
+  $('#x-handles').replaceChildren(...S.handles.map(hd=>h('div',{class:'item',style:'grid-template-columns:minmax(0,1fr) auto'},h('span',null,h('b',{text:'@'+hd}),/futsheriff/i.test(hd)?h('span',{class:'hint',text:' · leaks'}):h('span',{class:'hint',text:' · pro / méta'})),
+    /futsheriff/i.test(hd)?h('span'):confirmBtn('×',()=>write(()=>S.db.doc('config/feeds').set({handles:S.handles.filter(x=>x!==hd)}),'Compte retiré.')))));
+}
+$('#f-handle').addEventListener('submit',async e=>{ e.preventDefault(); const v=$('#x-new').value.trim().replace(/^@/,'').replace(/^https?:\/\/(x|twitter)\.com\//i,'').split(/[/?]/)[0];
+  if (!/^\w{1,15}$/.test(v)) return toast('Nom de compte X invalide.');
+  if (S.handles.some(x=>x.toLowerCase()===v.toLowerCase())) return toast('Déjà suivi.');
+  if (await write(()=>S.db.doc('config/feeds').set({handles:[...S.handles,v].slice(0,8)}),`@${v} ajouté : il sera lu à la prochaine actualisation.`)) $('#x-new').value=''; });
+$('#f-coins').addEventListener('submit',async e=>{ e.preventDefault(); const c=parseCoins($('#in-coins').value); if (c==null||isNaN(c)) return toast('Indique ton solde, par exemple 160000.');
+  const at=Date.now(); if (await write(()=>S.db.doc('config/main').set({...(S.settings||{}),coins:c,goal:GOAL,updatedAt:at,source:'manuel',history:[...(S.settings?.history||[]),{c,at}].slice(-300)}),'Solde enregistré.')) $('#in-coins').value=''; });
+
+/* ---------- trades forms, flip, coach ---------- */
+$('#t-buy').addEventListener('input',()=>{ const b=parseCoins($('#t-buy').value); $('#t-calc').textContent='Revente minimum pour ne rien perdre : '+(b?fmt(stepUp(b/0.95)):'—'); });
+$('#f-trade').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const buy=parseCoins($('#t-buy').value), raw=$('#t-sell').value.trim(), sell=raw?parseCoins(raw):null;
+  if (!buy) return toast("Indique un prix d'achat valide."); if (sell!==null && !sell) return toast('Prix de vente invalide.');
+  const now=Date.now();
+  if (await write(()=>S.db.collection('trades').add({player:$('#t-player').value.trim(),buy,sell,strategy:$('#t-strategy').value,boughtAt:now,soldAt:sell!=null?now:null,source:'manuel'}), sell!=null?`Trade : ${signed(afterTax(sell)-buy)} net.`:'Achat ajouté.')){ ['#t-player','#t-buy','#t-sell'].forEach(s=>$(s).value=''); $('#t-calc').textContent='Revente minimum pour ne rien perdre : —'; }
+});
+$('#t-filters').addEventListener('click',e=>{ const f=e.target.closest('button')?.dataset.f; if (!f) return; S.tFilter=f; pressFilters('#t-filters',f); renderTrades(); });
+$('#f-watch').addEventListener('submit',async e=>{ e.preventDefault(); const m=parseCoins($('#w-max').value), t=parseCoins($('#w-target').value); if (!m||!t) return toast('Indique un achat max et une revente visée.');
+  if (await write(()=>S.db.collection('watch').add({player:$('#w-player').value.trim(),version:$('#w-version').value.trim(),maxBuy:m,target:t,prices:[],createdAt:Date.now()}),'Carte suivie.')) ['#w-player','#w-version','#w-max','#w-target'].forEach(s=>$(s).value=''); });
+function renderFlip(){
+  const p=parseCoins($('#fl-price').value), m=Number($('#fl-margin').value)/100, q=Math.max(1,parseInt($('#fl-qty').value)||1);
+  const cell=(l,v,cls)=>h('div',null,h('span',{class:'label',text:l}),h('span',{class:'num '+(cls||''),text:v}));
+  if (!p) return $('#fl-out').replaceChildren(cell('Enchère max','—'),cell('Revente','—'),cell('Net / carte','—'),cell('Total','—'));
+  const sell=stepDown(p), bid=stepDown(afterTax(sell)/(1+m)), net=afterTax(sell)-bid;
+  $('#fl-out').replaceChildren(cell('Enchère max',fmt(bid)),cell('Revente',fmt(sell)),cell('Net / carte',signed(net),net>0?'pos':'neg'),cell(`Total × ${q}`,signed(net*q),net>0?'pos':'neg'),cell('Capital',fmt(bid*q)));
+}
+['#fl-price','#fl-margin','#fl-qty'].forEach(s=>$(s).addEventListener('input',renderFlip));
+let coachCtl;
+$('#coach-go').addEventListener('click',async ()=>{
+  if (!C.sample) return toast("Le coach n'est pas disponible dans cette vue.");
+  if (C.coachBusy){ coachCtl?.abort(); return; }
+  const data={credits:bank(), objectif:GOAL, saison:`${seasonPhase().label} : ${seasonPhase().text}`, moment:timing().label, resultats_mesures:trackStats(), opportunites:buildOpps().slice(0,8).map(o=>({action:o.act,quoi:o.title,prix:o.prices,raison:o.why,net:o.net??null})),
+    ventes:S.trades.filter(t=>t.sell!=null).slice(0,40).map(t=>({joueur:t.player,achat:t.buy,vente:t.sell,net:profitOf(t)})),
+    en_cours:S.trades.filter(t=>t.sell==null).slice(0,20).map(t=>({joueur:t.player,achat:t.buy})),
+    marche:{humeur:S.market?.momentum??null, index100:S.market?.indices?.['100']??null}, dce_nouveaux:(S.sbc?.list||[]).filter(s=>s.isNew).map(s=>({nom:s.title,cout:s.cost,expire:s.expires})),
+    meta_top:(S.meta?.players||[]).slice(0,10).map(p=>`${p.name} ${p.rating}`), leaks_recents:Object.values(S.feeds).flatMap(f=>(f.posts||[]).slice(0,4).map(p=>`@${f.handle}: ${p.text.slice(0,160)}`))};
+  C.coachBusy=true; coachCtl=new AbortController(); $('#coach-go').textContent='Arrêter'; $('#coach-out').textContent='Claude réfléchit…';
+  try {
+    const {text}=await C.sample(`Tu es un coach de trading pour le marché des transferts d'EA SPORTS FC Ultimate Team. Le joueur vise 1 000 000 de crédits vite, en tradant à la main (jamais de bot), surtout grâce aux leaks. Il ne garde jamais une carte plus de 3 jours : ne propose aucun achat à revendre plus tard. Taxe EA : 5 %.
+Réponds en français, texte simple sans markdown, 6 lignes maximum commençant par un tiret : les 2 ou 3 meilleures actions maintenant (avec prix), ce qu'il faut éviter, et ce que la méta et les DCE du moment impliquent. Si les données manquent, dis-le.
+Données : ${JSON.stringify(data)}`,{signal:coachCtl.signal,cache:false,onText:({text})=>{$('#coach-out').textContent=text;}});
+    await write(()=>S.db.doc('config/coach').set({text,at:Date.now()}));
+  } catch(e){ $('#coach-out').textContent=e?.text||''; toast(sampleErr(e)); }
+  finally { C.coachBusy=false; $('#coach-go').textContent='Analyser'; renderCoach(); }
+});
+function renderCoach(){ if (C.coachBusy) return; $('#coach-out').textContent=S.coach?.text||''; if (S.coach?.at) $('#coach-meta').textContent='Analyse '+ago(S.coach.at)+'. Consomme un peu de ton usage Claude.'; }
+
+/* ---------- data ---------- */
+function setStatus(msg){ const s=$('#status'); s.textContent=msg||''; s.hidden=!msg; }
+const docs=q=>q.docs.map(d=>({id:d.id,...d.data()}));
+function onErr(e){ setStatus(e?.code==='revoked' ? "L'accès à la base a été retiré pour cette page." : "La synchronisation s'est arrêtée. Recharge la page."); }
+function renderJour(){ renderOpps(); renderPlan(); }
+function renderAll(){ renderHeader(); renderJour(); renderTradeStats(); renderTrades(); renderWatch(); renderStrategies(); renderFeed(); renderLeaks(); renderSbc(); renderMeta(); renderFodder(); renderLive(); renderHandles(); renderImport(); renderCoach(); renderFlip(); renderRefresh(); renderTracks(); renderMassBid(); renderEvos(); renderTechs(); }
+
+async function init(){
+  renderAll();
+  for (let i=0;i<20 && !window.claude?.use;i++) await sleep(250);
+  if (!window.claude?.use){ setStatus("Base locale indisponible : relance FUT Trading."); return; }
+  const [db,user,mcp,sample]=await Promise.all(['db','user','mcp','sample'].map(n=>window.claude.use(n).catch(()=>null)));
+  C.mcp=mcp; C.sample=sample;
+  if (!sample){ $('#coach-go').closest('.panel').hidden=true; $('#ea-read').hidden=true; }
+  if (!mcp) note('#cx-unavailable', unavailableMsg(), 'err');
+  if (!db){ setStatus('Base locale indisponible : relance FUT Trading.'); return; }
+  S.db=db; S.canWrite=(user ? await user.can('data.write') : null)!==false;
+  setStatus(S.canWrite?'':'Lecture seule : tu peux consulter mais pas modifier.');
+  const subDoc=(path,fn)=>db.doc(path).onSnapshot(s=>fn(s.exists?s.data():null), onErr);
+  subDoc('config/main', d=>{ S.settings=d; renderHeader(); renderJour(); renderTechs(); });
+  subDoc('config/coach', d=>{ S.coach=d; renderCoach(); });
+  subDoc('config/feeds', d=>{ S.handles=d?.handles?.length?d.handles:['FutSheriff']; if (!S.handles.some(x=>/futsheriff/i.test(x))) S.handles.unshift('FutSheriff'); renderHandles(); subFeeds(); });
+  subDoc('imports/latest', d=>{ S.imp=d; renderImport(); });
+  subDoc('market/latest', d=>{ S.market=d; renderJour(); renderMeta(); renderFodder(); renderLeaks(); renderRefresh(); });
+  subDoc('market/history', d=>{ S.mhist=d; renderJour(); renderFodder(); });
+  subDoc('market/sbc', d=>{ S.sbc=d; renderSbc(); renderJour(); });
+  subDoc('market/meta', d=>{ S.meta=d; renderMeta(); renderJour(); });
+  subDoc('plans/massbid', d=>{ S.mbplan=d; renderMassBid(); renderJour(); });
+  subDoc('market/evos', d=>{ S.evos=d; renderEvos(); renderJour(); });
+  subDoc('config/hrefs', d=>{ S.hrefs=d?.map||{}; });
+  db.collection('track').orderBy('createdAt','desc').limit(300).onSnapshot(q=>{ S.tracks=docs(q); renderTracks(); renderJour(); }, onErr);
+  db.collection('trades').orderBy('boughtAt','desc').limit(1000).onSnapshot(q=>{ S.trades=docs(q); renderTradeStats(); renderTrades(); renderImport(); renderJour(); }, onErr);
+  db.collection('watch').orderBy('createdAt','desc').onSnapshot(q=>{ S.watch=docs(q); renderWatch(); renderJour(); }, onErr);
+  db.collection('strategies').orderBy('order').onSnapshot(q=>{ S.strategies=docs(q); renderStrategies(); }, onErr);
+  db.collection('leaks').orderBy('release','desc').limit(100).onSnapshot(q=>{ S.leaks=docs(q); renderLeaks(); renderJour(); }, onErr);
+  setInterval(()=>{ renderJour(); renderLeaks(); renderRefresh(); }, 60000);
+  scheduleAutoAll();
+  if (mcp && lsGet('eaLive')) setLive(true);
+}
+const feedSubs={};
+function subFeeds(){
+  for (const hd of S.handles){ const k=hd.toLowerCase(); if (feedSubs[k]) continue;
+    feedSubs[k]=S.db.doc('feed/'+k).onSnapshot(s=>{ if (s.exists) S.feeds[k]={handle:hd, ...s.data()}; else delete S.feeds[k]; renderFeed(); renderJour(); }, onErr); }
+  for (const k of Object.keys(feedSubs)) if (!S.handles.some(x=>x.toLowerCase()===k)){ feedSubs[k](); delete feedSubs[k]; delete S.feeds[k]; }
+  renderFeed();
+}
+init();
+</script>
+
+<script>document.getElementById('show-browser')?.addEventListener('click',()=>window.futHost?.('showBrowser'));</script>
+</body></html>
