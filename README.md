@@ -19,4 +19,15 @@ Le workflow `.github/workflows/build-sign.yml` compile l'application et la fait 
 (configuration d'artefact dans `signpath/artifact-configuration.xml`). `get-signed.ps1` installe la
 dernière version signée dans `..\FUT Trading` en gardant le dossier `data`.
 
-Code signing policy: free code signing provided by SignPath.io, certificate by SignPath Foundation.
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+- Committers and reviewers: [AlexisPerz](https://github.com/AlexisPerz)
+- Approvers: [AlexisPerz](https://github.com/AlexisPerz)
+
+Every release is built by GitHub Actions from this repository and approved manually before signing.
+
+## Privacy policy
+
+This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. It only loads the websites the user opens in its built-in browser (Futbin, X, the EA web app) and stores its data locally in `data/base.json`.

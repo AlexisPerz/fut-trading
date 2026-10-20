@@ -4,10 +4,11 @@
      the WebView2 DLLs are already signed by Microsoft and pass through unchanged. -->
 <artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
   <zip-file>
-    <pe-file path="FUTTrading.exe">
+    <!-- SignPath Foundation requires the binaries' metadata to be enforced: product name must match the project. -->
+    <pe-file path="FUTTrading.exe" product-name="FUT Trading">
       <authenticode-sign />
     </pe-file>
-    <pe-file path="FUTTrading.dll">
+    <pe-file path="FUTTrading.dll" product-name="FUT Trading">
       <authenticode-sign />
     </pe-file>
   </zip-file>
